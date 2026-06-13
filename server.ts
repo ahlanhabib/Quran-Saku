@@ -243,6 +243,86 @@ async function startServer() {
     }
   });
 
+  // API Route - Generate Khutbah
+  app.post("/api/generate-khutbah", async (req, res) => {
+    try {
+      const { tema, judul, apiKey } = req.body;
+      let client = getGeminiClient();
+      
+      if (apiKey && apiKey.trim() !== "") {
+        try {
+          client = new GoogleGenAI({ apiKey: apiKey.trim() });
+        } catch (e) {
+          // Fall back to deafult
+        }
+      }
+
+      if (!client) {
+        return res.status(401).json({ error: "API Key diperlukan. Silakan atur di Pengaturan." });
+      }
+
+      const promptText = `
+Anda adalah seorang ulama tingkat tinggi dan penulis naskah Khutbah Jumat profesional di Indonesia.
+Tugas Anda: Buatkan naskah Khutbah Jumat yang lengkap, mendalam, dan terstruktur sesuai sunnah dengan tema: "${tema}" ${judul ? `(Judul: ${judul})` : ''}.
+Pastikan panjangnya cukup untuk khutbah nyata (sekitar 10-15 menit dibaca). Gunakan bahasa Indonesia yang baku, menyentuh hati, namun tegas.
+
+Struktur Output JSON yang HARUS dikembalikan persis seperti ini:
+{
+  "title": "Judul Khutbah (Singkat dan Menarik)",
+  "author": "AI Ustadz / Nama Anda",
+  "tema": "Topik ringkas (Maksimal 2-3 kata)",
+  "ringkasan": "Satu kalimat ringkasan",
+  "muqaddimah": "الْحَمْدُ لِلَّهِ الَّذِي... (Teks Arab lengkap Muqaddimah: memuat Tahmid, Shalawat, Syahadat, dan Wasiat Takwa)",
+  "content": [
+    // Array dari block konten. Kombinasikan "text" (paragraf narasi), "quran" (ayat), "hadith" (hadis), "points" (poin-poin pesan), dan selalu diakhiri dengan "doa" (doa bahasa Indonesia di akhir khutbah pertama).
+  ],
+  "penutup": "بَارَكَ اللهُ لِيْ وَلَكُمْ فِي الْقُرْآنِ الْعَظِيْمِ... (Teks Arab lengkap Penutup / Khutbah Kedua)"
+}
+
+Untuk "content", struktur block yang diijinkan adalah:
+1. Text biasa: { "type": "text", "text": "Paragraf narasi khutbah yang mendalam..." }
+2. Kutipan Qur'an: { "type": "quran", "arabic": "tulisan arab ayat", "translation": "terjemahan", "source": "QS. Nama Surat: Ayat" }
+3. Kutipan Hadis: { "type": "hadith", "arabic": "tulisan arab hadis", "translation": "terjemahan", "source": "HR. Sesuatu" }
+4. Poin-poin/Penjelasan: { "type": "points", "intro": "Berikut adalah kiat-kiat:", "items": [ { "title": "1. Poin Satu", "desc": "Penjelasan" } ] }
+5. Doa Penutup Khutbah Pertama: { "type": "doa", "text": "Ya Allah, jadikanlah kami..." }
+
+PENTING:
+- Di dalam array "content", HARUS memuat minimal 2-3 dalil (Quran/Hadis).
+- Di akhir array "content", SELALU letakkan block "doa" yang berisi doa merenung/intropeksi berbahasa Indonesia untuk menutup khutbah pertama sebelum duduk di antara dua khutbah.
+- Kembalikan HANYA JSON. Jangan gunakan markdown block (\`\`\`json).`;
+
+      const response = await client.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: promptText,
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.7,
+        }
+      });
+
+      const responseText = response.text;
+      if (!responseText) {
+        throw new Error("Empty response from AI");
+      }
+
+      // the response is guaranteed to be JSON string due to responseMimeType
+      let parsedKhutbah;
+      try {
+        parsedKhutbah = JSON.parse(responseText);
+      } catch (err) {
+        throw new Error("Gagal mengurai format JSON dari AI.");
+      }
+
+      // Pastikan ada ID dan property lain
+      parsedKhutbah.id = Date.now();
+      
+      res.json(parsedKhutbah);
+    } catch (error: any) {
+      console.error("AI Error:", error);
+      res.status(500).json({ error: error.message || "Terjadi kesalahan saat membuat khutbah." });
+    }
+  });
+
   // API Route - Ask AI Scholar about verse or spiritual guidance
   app.post("/api/ask-ai", async (req, res) => {
     try {

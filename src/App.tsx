@@ -31,6 +31,13 @@ import {
   LayoutGrid,
   ArrowLeft,
   Bot,
+  Radio,
+  Calculator,
+  Mic,
+  Users,
+  Star,
+  Quote,
+  MessageCircle
 } from "lucide-react";
 
 // Components
@@ -53,6 +60,12 @@ import { JurnalIbadahView } from "./components/JurnalIbadahView";
 import { DzikirPagiPetangView } from "./components/DzikirPagiPetangView";
 import { KalkulatorZakatView } from "./components/KalkulatorZakatView";
 import { TanyaUstadzView } from "./components/TanyaUstadzView";
+import { AsmaulHusnaView } from "./components/AsmaulHusnaView";
+import { KisahNabiView } from "./components/KisahNabiView";
+import { KalkulatorWarisView } from "./components/KalkulatorWarisView";
+import { RadioIslamView } from "./components/RadioIslamView";
+import { KhutbahJumatView } from "./components/KhutbahJumatView";
+import { KumpulanShalawatView } from "./components/KumpulanShalawatView";
 
 // Typings and Data
 import { Bookmark, Note, TilawahProgress } from "./types";
@@ -196,8 +209,14 @@ export default function App() {
     | "dzikir"
     | "zakat"
     | "ustadz"
+    | "asmaulHusna"
+    | "kisahNabi"
+    | "waris"
+    | "radio"
+    | "khutbah"
+    | "shalawat"
   >("beranda");
-  const [showSubMenu, setShowSubMenu] = useState(false);
+  const [subMenuLevel, setSubMenuLevel] = useState(0);
 
   // Sync state to History API for Android/Browser Back Button Support
   useEffect(() => {
@@ -205,11 +224,47 @@ export default function App() {
     const handlePopState = (e: PopStateEvent) => {
       if (e.state) {
         setActiveTab(e.state.tab || "beranda");
-        setShowSubMenu(e.state.sub || false);
+        setSubMenuLevel(e.state.sub || 0);
       }
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Precache popular surahs for reliable offline access
+  useEffect(() => {
+    const precacheSurahs = async () => {
+      if ('caches' in window) {
+        try {
+          const cache = await caches.open('quran-api-cache');
+          const urlsToCache = [
+            '/api/quran/surah',
+            '/api/quran/surah/1', // Al-Fatihah
+            '/api/quran/surah/18',// Al-Kahf
+            '/api/quran/surah/36',// Yasin
+            '/api/quran/surah/56',// Al-Waqi'ah
+            '/api/quran/surah/67',// Al-Mulk
+          ];
+          
+          for (const url of urlsToCache) {
+            const match = await cache.match(url);
+            if (!match) {
+              try {
+                const response = await fetch(url);
+                if (response.ok) {
+                  await cache.put(url, response);
+                }
+              } catch (fetchErr) {
+                console.warn(`Could not precache ${url}`, fetchErr);
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to precache surahs:", e);
+        }
+      }
+    };
+    precacheSurahs();
   }, []);
 
   // Update history state when tabs or submenus change
@@ -219,30 +274,30 @@ export default function App() {
     if (
       !currentState ||
       currentState.tab !== activeTab ||
-      currentState.sub !== showSubMenu
+      currentState.sub !== subMenuLevel
     ) {
       // If it's the very first load and we're just syncing defaults, replace instead of push
-      if (!currentState && activeTab === "beranda" && !showSubMenu) {
+      if (!currentState && activeTab === "beranda" && subMenuLevel === 0) {
         window.history.replaceState(
-          { tab: activeTab, sub: showSubMenu },
+          { tab: activeTab, sub: subMenuLevel },
           "",
           `#${activeTab}`,
         );
       } else {
         window.history.pushState(
-          { tab: activeTab, sub: showSubMenu },
+          { tab: activeTab, sub: subMenuLevel },
           "",
-          `#${activeTab}${showSubMenu ? "-menu" : ""}`,
+          `#${activeTab}${subMenuLevel > 0 ? `-menu-${subMenuLevel}` : ""}`,
         );
       }
     }
-  }, [activeTab, showSubMenu]);
+  }, [activeTab, subMenuLevel]);
 
   // Handle Android Physical Back Button for Capacitor (fallback)
   useEffect(() => {
     const handleBackButton = async () => {
-      if (showSubMenu) {
-        setShowSubMenu(false);
+      if (subMenuLevel > 0) {
+        setSubMenuLevel(prev => prev - 1);
       } else if (activeTab !== "beranda") {
         setActiveTab("beranda");
       } else {
@@ -258,7 +313,7 @@ export default function App() {
     return () => {
       backListener.then((listener) => listener.remove());
     };
-  }, [activeTab, showSubMenu]);
+  }, [activeTab, subMenuLevel]);
 
   // Notifications/Toasts System
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -587,220 +642,78 @@ export default function App() {
 
             {/* Main menu 8-grid grid listed under the screenshot */}
             <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm overflow-hidden relative min-h-[220px]">
-              <AnimatePresence mode="wait">
-                {!showSubMenu ? (
+                <AnimatePresence mode="wait">
                   <motion.div
-                    key="main-menu"
-                    initial={{ x: -20, opacity: 0 }}
+                    key={`menu-level-${subMenuLevel}`}
+                    initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: -20, opacity: 0 }}
                     transition={{ duration: 0.2 }}
                     className="grid grid-cols-4 md:grid-cols-4 lg:grid-cols-8 gap-y-5 gap-x-2 sm:gap-x-4"
                   >
-                    {[
-                      {
-                        tag: "Al-Qur'an",
-                        action: () => setActiveTab("quran"),
-                        bg: "bg-[#EDF4F1] text-[#0F4C3A]",
-                        icon: <BookOpen className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Terakhir Baca",
-                        action: () =>
-                          handleJumpToSurah(
-                            tilawahProgress.currentSurah,
-                            tilawahProgress.currentAyat,
-                          ),
-                        bg: "bg-[#FDF7E7] text-amber-700",
-                        icon: <Clock className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Arah Kiblat",
-                        action: () => {
-                          setActiveTab("kiblat");
-                          addToast(
-                            "Arah Kiblat",
-                            "Membuka navigator kiblat.",
-                            "info",
-                          );
-                        },
-                        bg: "bg-[#EDF6F5] text-teal-700",
-                        icon: <Compass className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Kalender",
-                        action: () => {
-                          setActiveTab("kalender");
-                          addToast(
-                            "Kalender Hijriah",
-                            "Membuka penanggalan Islam.",
-                            "info",
-                          );
-                        },
-                        bg: "bg-[#F7F2EC] text-amber-900",
-                        icon: <Calendar className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Tafsir",
-                        action: () => setActiveTab("tafsir"),
-                        bg: "bg-[#F3EEF8] text-purple-700",
-                        icon: <FileText className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Doa Harian",
-                        action: () => setActiveTab("doa"),
-                        bg: "bg-[#FDF2EB] text-orange-700",
-                        icon: <HandHeart className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Jadwal Sholat",
-                        action: () => {
-                          const el = document.getElementById(
-                            "jadwal-sholat-widget-container",
-                          );
-                          if (el) {
-                            el.scrollIntoView({
-                              behavior: "smooth",
-                              block: "center",
-                            });
-                            addToast(
-                              "Jadwal Sholat",
-                              "Menampilkan panel jadwal sholat.",
-                              "info",
-                            );
-                          }
-                        },
-                        bg: "bg-[#EEF6FA] text-sky-700",
-                        icon: <Calendar className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Lainnya",
-                        action: () => setShowSubMenu(true),
-                        bg: "bg-[#F5F5F5] text-slate-700",
-                        icon: <LayoutGrid className="w-5.5 h-5.5" />,
-                      },
-                    ].map((itm, i) => (
-                      <button
-                        key={i}
-                        onClick={itm.action}
-                        className="flex flex-col items-center text-center gap-2 cursor-pointer focus:outline-none"
-                      >
-                        <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-[#FAF6EE] border border-[#F2ECE4]/60 shadow-xs flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
-                          <div className={`p-1 ${itm.bg.split(" ")[1]}`}>
-                            {itm.icon}
+                    {(() => {
+                      const menus = {
+                        0: [
+                          { tag: "Al-Qur'an", action: () => setActiveTab("quran"), bg: "bg-[#EDF4F1] text-[#0F4C3A]", icon: <BookOpen className="w-5.5 h-5.5" /> },
+                          { tag: "Terakhir Baca", action: () => handleJumpToSurah(tilawahProgress.currentSurah, tilawahProgress.currentAyat), bg: "bg-[#FDF7E7] text-amber-700", icon: <Clock className="w-5.5 h-5.5" /> },
+                          { tag: "Arah Kiblat", action: () => { setActiveTab("kiblat"); addToast("Arah Kiblat", "Membuka navigator kiblat.", "info"); }, bg: "bg-[#EDF6F5] text-teal-700", icon: <Compass className="w-5.5 h-5.5" /> },
+                          { tag: "Kalender", action: () => { setActiveTab("kalender"); addToast("Kalender Hijriah", "Membuka penanggalan Islam.", "info"); }, bg: "bg-[#F7F2EC] text-amber-900", icon: <Calendar className="w-5.5 h-5.5" /> },
+                          { tag: "Tafsir", action: () => setActiveTab("tafsir"), bg: "bg-[#F3EEF8] text-purple-700", icon: <FileText className="w-5.5 h-5.5" /> },
+                          { tag: "Doa Harian", action: () => setActiveTab("doa"), bg: "bg-[#FDF2EB] text-orange-700", icon: <HandHeart className="w-5.5 h-5.5" /> },
+                          { tag: "Jadwal Sholat", action: () => {
+                            const el = document.getElementById("jadwal-sholat-widget-container");
+                            if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); addToast("Jadwal Sholat", "Menampilkan panel jadwal sholat.", "info"); }
+                          }, bg: "bg-[#EEF6FA] text-sky-700", icon: <Calendar className="w-5.5 h-5.5" /> },
+                          { tag: "Lainnya", action: () => setSubMenuLevel(1), bg: "bg-[#F5F5F5] text-slate-700", icon: <LayoutGrid className="w-5.5 h-5.5" /> },
+                        ],
+                        1: [
+                          { tag: "Kembali", action: () => setSubMenuLevel(0), bg: "bg-[#F5F5F5] text-slate-500", icon: <ArrowLeft className="w-5.5 h-5.5" /> },
+                          { tag: "Jurnal", action: () => setActiveTab("jurnal"), bg: "bg-[#F0FDF4] text-emerald-600", icon: <PenTool className="w-5.5 h-5.5" /> },
+                          { tag: "Dzikir", action: () => setActiveTab("dzikir"), bg: "bg-[#FFFCE8] text-amber-600", icon: <Heart className="w-5.5 h-5.5" /> },
+                          { tag: "Zakat", action: () => setActiveTab("zakat"), bg: "bg-[#F8FAFC] text-blue-600", icon: <LibraryBig className="w-5.5 h-5.5" /> },
+                          { tag: "Tasbih", action: () => { setActiveTab("tasbih"); addToast("Tasbih Digital", "Membuka fitur Tasbih Digital.", "info"); }, bg: "bg-[#EDF5F1] text-emerald-700", icon: <RotateCcw className="w-5.5 h-5.5" /> },
+                          { tag: "Hadits", action: () => { setActiveTab("hadits"); addToast("Kumpulan Hadits", "Membuka perpustakaan hadits.", "info"); }, bg: "bg-[#F0F7FF] text-blue-700", icon: <Scroll className="w-5.5 h-5.5" /> },
+                          { tag: "Fikih", action: () => { setActiveTab("fikih"); addToast("Fikih", "Membuka panduan beribadah.", "info"); }, bg: "bg-[#FDF2F8] text-pink-700", icon: <BookMarked className="w-5.5 h-5.5" /> },
+                          { tag: "Lainnya", action: () => setSubMenuLevel(2), bg: "bg-[#F5F5F5] text-slate-700", icon: <LayoutGrid className="w-5.5 h-5.5" /> },
+                        ],
+                        2: [
+                          { tag: "Kembali", action: () => setSubMenuLevel(1), bg: "bg-[#F5F5F5] text-slate-500", icon: <ArrowLeft className="w-5.5 h-5.5" /> },
+                          { tag: "Cari", action: () => { setActiveTab("cari"); addToast("Pencarian", "Membuka fitur pencarian.", "info"); }, bg: "bg-[#FFF6ED] text-orange-600", icon: <Search className="w-5.5 h-5.5 text-orange-600" /> },
+                          { tag: "Asmaul Husna", action: () => setActiveTab("asmaulHusna"), bg: "bg-[#F3EEF8] text-purple-700", icon: <Star className="w-5.5 h-5.5" /> },
+                          { tag: "Kisah Nabi", action: () => setActiveTab("kisahNabi"), bg: "bg-[#FDF2EB] text-amber-800", icon: <Users className="w-5.5 h-5.5" /> },
+                          { tag: "Waris", action: () => setActiveTab("waris"), bg: "bg-[#EEF6FA] text-slate-700", icon: <Calculator className="w-5.5 h-5.5" /> },
+                          { tag: "Radio", action: () => setActiveTab("radio"), bg: "bg-[#F0FDF4] text-emerald-600", icon: <Radio className="w-5.5 h-5.5" /> },
+                          { tag: "Khutbah", action: () => setActiveTab("khutbah"), bg: "bg-[#F8FAFC] text-blue-600", icon: <Mic className="w-5.5 h-5.5" /> },
+                          { tag: "Lainnya", action: () => setSubMenuLevel(3), bg: "bg-[#F5F5F5] text-slate-700", icon: <LayoutGrid className="w-5.5 h-5.5" /> },
+                        ],
+                        3: [
+                          { tag: "Kembali", action: () => setSubMenuLevel(2), bg: "bg-[#F5F5F5] text-slate-500", icon: <ArrowLeft className="w-5.5 h-5.5" /> },
+                          { tag: "Shalawat", action: () => setActiveTab("shalawat"), bg: "bg-[#FFFCE8] text-pink-600", icon: <Quote className="w-5.5 h-5.5" /> },
+                          { tag: "Tanya Ustadz", action: () => setActiveTab("ustadz"), bg: "bg-[#EEF6FA] text-teal-700", icon: <MessageCircle className="w-5.5 h-5.5" /> },
+                        ]
+                      };
+
+                      const currentMenu = menus[subMenuLevel as keyof typeof menus] || menus[0];
+
+                      return currentMenu.map((itm, i) => (
+                        <button
+                          key={i}
+                          onClick={itm.action}
+                          className="flex flex-col items-center text-center gap-2 cursor-pointer focus:outline-none"
+                        >
+                          <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-[#FAF6EE] border border-[#F2ECE4]/60 shadow-xs flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+                            <div className={`p-1 ${(itm.bg || "").split(" ")[1] || ""}`}>
+                              {itm.icon}
+                            </div>
                           </div>
-                        </div>
-                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 leading-normal line-clamp-1 w-full mt-0.5">
-                          {itm.tag}
-                        </span>
-                      </button>
-                    ))}
+                          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 leading-normal line-clamp-1 w-full mt-0.5">
+                            {itm.tag}
+                          </span>
+                        </button>
+                      ));
+                    })()}
                   </motion.div>
-                ) : (
-                  <motion.div
-                    key="sub-menu"
-                    initial={{ x: 20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 20, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="grid grid-cols-4 md:grid-cols-4 gap-y-5 gap-x-2 sm:gap-x-4"
-                  >
-                    {[
-                      {
-                        tag: "Kembali",
-                        action: () => setShowSubMenu(false),
-                        bg: "bg-[#F5F5F5] text-slate-500",
-                        icon: <ArrowLeft className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Jurnal",
-                        action: () => setActiveTab("jurnal"),
-                        bg: "bg-[#F0FDF4] text-emerald-600",
-                        icon: <PenTool className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Dzikir",
-                        action: () => setActiveTab("dzikir"),
-                        bg: "bg-[#FFFCE8] text-amber-600",
-                        icon: <Heart className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Zakat",
-                        action: () => setActiveTab("zakat"),
-                        bg: "bg-[#F8FAFC] text-blue-600",
-                        icon: <LibraryBig className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Tasbih",
-                        action: () => {
-                          setActiveTab("tasbih");
-                          addToast(
-                            "Tasbih Digital",
-                            "Membuka fitur Tasbih Digital.",
-                            "info",
-                          );
-                        },
-                        bg: "bg-[#EDF5F1] text-emerald-700",
-                        icon: <RotateCcw className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Hadits",
-                        action: () => {
-                          setActiveTab("hadits");
-                          addToast(
-                            "Kumpulan Hadits",
-                            "Membuka perpustakaan hadits.",
-                            "info",
-                          );
-                        },
-                        bg: "bg-[#F0F7FF] text-blue-700",
-                        icon: <Scroll className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Fikih",
-                        action: () => {
-                          setActiveTab("fikih");
-                          addToast(
-                            "Fikih",
-                            "Membuka panduan beribadah.",
-                            "info",
-                          );
-                        },
-                        bg: "bg-[#FDF2F8] text-pink-700",
-                        icon: <BookMarked className="w-5.5 h-5.5" />,
-                      },
-                      {
-                        tag: "Cari",
-                        action: () => {
-                          setActiveTab("cari");
-                          addToast(
-                            "Pencarian",
-                            "Membuka fitur pencarian.",
-                            "info",
-                          );
-                        },
-                        bg: "bg-[#FFF6ED] text-orange-600",
-                        icon: <Search className="w-5.5 h-5.5 text-orange-600" />,
-                      },
-                    ].map((itm, i) => (
-                      <button
-                        key={i}
-                        onClick={itm.action}
-                        className="flex flex-col items-center text-center gap-2 cursor-pointer focus:outline-none"
-                      >
-                        <div className="w-12 h-12 sm:w-13 sm:h-13 rounded-full bg-[#FAF6EE] border border-[#F2ECE4]/60 shadow-xs flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
-                          <div className={`p-1 ${itm.bg.split(" ")[1]}`}>
-                            {itm.icon}
-                          </div>
-                        </div>
-                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 leading-normal line-clamp-1 w-full mt-0.5">
-                          {itm.tag}
-                        </span>
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                </AnimatePresence>
             </div>
 
             {/* Target Membaca Harian */}
@@ -1083,6 +996,19 @@ export default function App() {
           />
         );
 
+      case "asmaulHusna":
+        return <AsmaulHusnaView onBack={() => setActiveTab("beranda")} addToast={addToast} />;
+      case "kisahNabi":
+        return <KisahNabiView onBack={() => setActiveTab("beranda")} />;
+      case "waris":
+        return <KalkulatorWarisView onBack={() => setActiveTab("beranda")} addToast={addToast} />;
+      case "radio":
+        return <RadioIslamView onBack={() => setActiveTab("beranda")} addToast={addToast} />;
+      case "khutbah":
+        return <KhutbahJumatView onBack={() => setActiveTab("beranda")} />;
+      case "shalawat":
+        return <KumpulanShalawatView onBack={() => setActiveTab("beranda")} addToast={addToast} />;
+
       case "profil":
         return (
           <SettingsView
@@ -1177,7 +1103,7 @@ export default function App() {
       ) : null}
 
       {/* GLOBAL HEADER FOR PRIMARY TABS */}
-      {["quran", "doa", "cari", "profil"].includes(activeTab) && !showSubMenu ? (
+      {["quran", "doa", "cari", "profil"].includes(activeTab) && subMenuLevel === 0 ? (
         <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-30 px-5 py-4 flex items-center justify-center">
           <h2 className="font-serif font-bold text-lg text-[#0F4C3A]">
             {activeTab === "quran" && "Mushaf Al-Qur'an"}

@@ -35,6 +35,20 @@ export default defineConfig(() => {
         workbox: {
           runtimeCaching: [
             {
+              urlPattern: /\/api\/quran\/.*/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'quran-api-cache',
+                expiration: {
+                  maxEntries: 120,
+                  maxAgeSeconds: 60 * 60 * 24 * 365
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
+            },
+            {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',
               options: {

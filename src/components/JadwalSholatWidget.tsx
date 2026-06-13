@@ -196,7 +196,9 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
     // Find the next sholat today
     for (const p of prayerTimes) {
       if (!p.time) continue;
-      const [shours, sminutes] = p.time.split(":").map(Number);
+      const timeParts = p.time.split(":");
+      if (timeParts.length < 2) continue;
+      const [shours, sminutes] = timeParts.map(Number);
       const targetTotalSecs = shours * 3600 + sminutes * 60;
 
       if (targetTotalSecs > currentTotalSecs) {
@@ -215,19 +217,22 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
     }
 
     // If none found, next is tomorrow's Imsak/Subuh
-    if (!targetSholat) {
-      const [shours, sminutes] = schedule.subuh.split(":").map(Number);
-      const targetTotalSecs = shours * 3600 + sminutes * 60 + 24 * 3600; // Tomorrow
-      const diff = targetTotalSecs - currentTotalSecs;
-      const hr = Math.floor(diff / 3600);
-      const mn = Math.floor((diff % 3600) / 60);
-      const sc = diff % 60;
-
-      targetSholat = {
-        name: "Subuh (Esok Hari)",
-        time: schedule.subuh,
-        remaining: `${String(hr).padStart(2, "0")}:${String(mn).padStart(2, "0")}:${String(sc).padStart(2, "0")}`,
-      };
+    if (!targetSholat && schedule?.subuh) {
+      const timeParts = schedule.subuh.split(":");
+      if (timeParts.length >= 2) {
+         const [shours, sminutes] = timeParts.map(Number);
+         const targetTotalSecs = shours * 3600 + sminutes * 60 + 24 * 3600; // Tomorrow
+         const diff = targetTotalSecs - currentTotalSecs;
+         const hr = Math.floor(diff / 3600);
+         const mn = Math.floor((diff % 3600) / 60);
+         const sc = diff % 60;
+   
+         targetSholat = {
+           name: "Subuh (Esok Hari)",
+           time: schedule.subuh,
+           remaining: `${String(hr).padStart(2, "0")}:${String(mn).padStart(2, "0")}:${String(sc).padStart(2, "0")}`,
+         };
+      }
     }
 
     setNextSholat(targetSholat);
@@ -235,8 +240,10 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
     // Dynamic notification trigger on precise target sholat
     // Check if remaining says "00:00:01"
     if (
+      targetSholat && (
       targetSholat.remaining === "00:00:01" ||
       targetSholat.remaining === "00:00:00"
+      )
     ) {
       const canonicalName = targetSholat.name.toLowerCase();
       if (notifiedPrayers[canonicalName]) {

@@ -9,6 +9,7 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Scheherazade New", "Amiri", Georgia, serif;
+  --font-amiri: "Amiri", serif;
 }
 
 html, body {
