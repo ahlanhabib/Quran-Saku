@@ -1075,6 +1075,11 @@ export default function App() {
             onBack={() => setActiveTab("beranda")}
             addToast={addToast}
             geminiApiKey={geminiApiKey}
+            onNavigateToSurahAyah={(surah, ayat) => {
+              setDeepLinkSurah(surah);
+              setDeepLinkAyat(ayat);
+              setActiveTab("quran");
+            }}
           />
         );
 

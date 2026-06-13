@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "motion/react";
+import html2canvas from "html2canvas";
 import {
   Send,
   Bot,
@@ -11,13 +12,20 @@ import {
   Download,
   Volume2,
   MoreHorizontal,
-  X
+  X,
+  Mic,
+  MicOff,
+  Bookmark,
+  Image as ImageIcon,
+  BookOpen
 } from "lucide-react";
+import { STATIC_SURAHS } from "../data";
 
 interface ChatMessage {
   sender: "user" | "ai";
   text: string;
   timestamp: Date;
+  isBookmarked?: boolean;
 }
 
 interface TanyaUstadzViewProps {
@@ -28,12 +36,28 @@ interface TanyaUstadzViewProps {
     type: "success" | "info" | "warning" | "notification"
   ) => void;
   geminiApiKey?: string;
+  onNavigateToSurahAyah?: (surah: number, ayat: number) => void;
 }
+
+const processTextForQuranLinks = (rawText: string) => {
+  return rawText.replace(/QS\.\s*([A-Za-z-'\s]+):\s*(\d+)(?:-\d+)?/gi, (match, surahName, ayatNumber) => {
+    // Normalization handles prefixes like "Ali 'Imran", removes spaces/punctuation for flexible matching
+    const searchName = surahName.trim().toLowerCase().replace(/[^a-z]/g, "");
+    const matchedSurah = STATIC_SURAHS.find(
+      (s) => s.namaLatin.toLowerCase().replace(/[^a-z]/g, "") === searchName || s.nama.toLowerCase().replace(/[^a-z]/g, "") === searchName
+    );
+    if (matchedSurah) {
+      return `[${match}](#goto-quran-${matchedSurah.nomor}-${ayatNumber})`;
+    }
+    return match;
+  });
+};
 
 export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   onBack,
   addToast,
   geminiApiKey,
+  onNavigateToSurahAyah,
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = localStorage.getItem("tanyaUstadzHistory");
@@ -58,7 +82,11 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
+  
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     localStorage.setItem("tanyaUstadzHistory", JSON.stringify(messages));
@@ -81,6 +109,68 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isSending]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = "id-ID";
+
+        recognition.onresult = (event: any) => {
+          let interimTranscript = "";
+          let finalTranscript = "";
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+          
+          if (finalTranscript) {
+            setInputValue((prev) => (prev ? prev + " " + finalTranscript : finalTranscript));
+          } else if (interimTranscript) {
+             // For a better UX we could show interim, but for now just appending final is safer
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition error", event.error);
+          setIsListening(false);
+          addToast("Informasi", "Mikrofon dihentikan atau tidak diizinkan.", "notification");
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+  }, [addToast]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+    } else {
+      if (recognitionRef.current) {
+         try {
+           recognitionRef.current.start();
+           setIsListening(true);
+           addToast("Mendengarkan...", "Silakan mulai berbicara.", "info");
+         } catch (e) {
+           console.error(e);
+           addToast("Error", "Gagal memulai mikrofon.", "warning");
+         }
+      } else {
+         addToast("Tidak Didukung", "Browser Anda tidak mendukung fitur Voice Input.", "warning");
+      }
+    }
+  };
 
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText || inputValue;
@@ -181,6 +271,17 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
     } finally {
       setIsSending(false);
     }
+  };
+
+  const toggleBookmark = (indexToSelect: number) => {
+    setMessages((prev) => {
+      const newMessages = [...prev];
+      newMessages[indexToSelect] = { 
+        ...newMessages[indexToSelect], 
+        isBookmarked: !newMessages[indexToSelect].isBookmarked 
+      };
+      return newMessages;
+    });
   };
 
   const handleClearChat = () => {
@@ -437,14 +538,103 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
     }
   };
 
+  const handleExportImage = async (text: string, timestamp: Date) => {
+    addToast("Membuat Gambar...", "Mempersiapkan kutipan gambar.", "info");
+    const rootContainer = document.createElement("div");
+    rootContainer.style.position = "absolute";
+    rootContainer.style.left = "-9999px";
+    rootContainer.style.top = "0";
+    rootContainer.style.width = "1080px";
+    rootContainer.style.backgroundColor = "#0F4C3A";
+    rootContainer.style.color = "#FFFFFF";
+    rootContainer.style.padding = "80px";
+    rootContainer.style.fontFamily = "sans-serif";
+    rootContainer.style.boxSizing = "border-box";
+    
+    const cleanText = text.replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "").replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '').replace(/`/g, '');
+    let lines = cleanText.split('\n').filter(l => l.trim().length > 0);
+    
+    if (lines.length > 7) {
+      lines = lines.slice(0, 7);
+      lines.push("...");
+    }
+
+    let htmlContent = "";
+    for (let line of lines) {
+      let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/### (.*?)$/g, '<strong>$1</strong>');
+      const arabicChars = line.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || [];
+      const allLetters = line.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g, '');
+      const isLineArabic = allLetters.length > 0 && (arabicChars.length / allLetters.length) > 0.4;
+      if (isLineArabic) {
+        htmlContent += `<div class="img-arabic">${formattedLine}</div>`;
+      } else {
+        htmlContent += `<div style="margin-bottom: 24px;">${formattedLine}</div>`;
+      }
+    }
+
+    rootContainer.innerHTML = `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+        .img-content { font-family: 'Inter', sans-serif; font-size: 34px; line-height: 1.6; }
+        .img-arabic { font-family: 'Scheherazade New', 'Noto Sans Arabic', 'Amiri', serif; font-size: 60px; line-height: 1.8; direction: rtl; text-align: right; color: #ECC17A; margin: 30px 0; }
+        .img-footer { margin-top: 60px; border-top: 2px solid rgba(236, 193, 122, 0.3); padding-top: 40px; display: flex; justify-content: space-between; align-items: center; }
+        .img-footer-brand { font-size: 36px; font-weight: bold; color: #ECC17A; font-family: serif; margin-bottom: 8px; }
+        .img-footer-sub { font-size: 24px; color: rgba(255,255,255,0.7); }
+      </style>
+      <div class="img-content">
+        ${htmlContent}
+      </div>
+      <div class="img-footer">
+        <div>
+           <div class="img-footer-brand">Quran Saku</div>
+           <div class="img-footer-sub">Tanya Ustadz AI &mdash; ${new Date(timestamp).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>
+        <div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#ECC17A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+          </svg>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(rootContainer);
+
+    try {
+      const canvas = await html2canvas(rootContainer, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const link = document.createElement('a');
+      link.href = imgData;
+      link.download = "TanyaUstadzAI-Kutipan.jpg";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addToast("Sukses", "Gambar kutipan berhasil diunduh.", "success");
+    } catch (err) {
+      console.error(err);
+      addToast("Gagal", "Gagal merender gambar.", "warning");
+    } finally {
+      document.body.removeChild(rootContainer);
+    }
+  };
+
   const handleSpeak = (text: string) => {
     if ("speechSynthesis" in window) {
-      // Clean text slightly from markdown standard chars to improve TTS reading
-      const cleanText = text.replace(/[*_#]/g, "");
-      const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = "id-ID";
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
+      window.speechSynthesis.cancel();
+      const cleanText = text.replace(/[*_#`]/g, "");
+      
+      const arabicRegex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s،؛؟]+)/g;
+      const chunks = cleanText.split(arabicRegex).filter((c) => c.trim().length > 0);
+
+      chunks.forEach((chunk) => {
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        if (/[\u0600-\u06FF]/.test(chunk)) {
+          utterance.lang = "ar-SA";
+          utterance.rate = 0.8;
+        } else {
+          utterance.lang = "id-ID";
+          utterance.rate = 0.95;
+        }
+        window.speechSynthesis.speak(utterance);
+      });
       addToast("Membacakan Jawaban", "Asisten AI membaca rujukan...", "info");
     } else {
       addToast("Fitur Tidak Didukung", "Browser Anda tidak mendukung Web Speech API.", "warning");
@@ -477,17 +667,33 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={handleClearChat}
-          className="shrink-0 text-[10px] sm:text-xs text-[#ECC17A] hover:text-white px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 font-bold transition-all cursor-pointer whitespace-nowrap mt-2"
-        >
-          Hapus Obrolan
-        </button>
+        <div className="flex gap-2 items-center mt-2 shrink-0">
+          <button
+            onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${showBookmarksOnly ? "bg-[#ECC17A] text-[#0F4C3A]" : "bg-white/5 text-[#ECC17A] hover:bg-white/10"}`}
+            title="Filter Bookmark Jawaban"
+          >
+            <Bookmark className={`w-3.5 h-3.5 ${showBookmarksOnly ? "fill-[#0F4C3A]" : ""}`} />
+            {showBookmarksOnly ? "Semua" : "Bookmark"}
+          </button>
+          <button
+            onClick={handleClearChat}
+            className="shrink-0 text-[10px] sm:text-xs text-[#ECC17A] hover:text-white px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 font-bold transition-all cursor-pointer whitespace-nowrap"
+          >
+            Hapus
+          </button>
+        </div>
       </div>
 
       {/* Scrolling Chat Area */}
       <div className="flex-1 overflow-y-auto w-full max-w-3xl mx-auto p-5 pb-8 flex flex-col gap-4 bg-[#FDFBF7] relative scroll-smooth">
-        {messages.map((msg, i) => {
+        {showBookmarksOnly && messages.filter(m => m.isBookmarked).length === 0 && (
+          <div className="text-center text-slate-400 text-sm mt-10">
+            Belum ada jawaban yang di-bookmark.
+          </div>
+        )}
+        {(showBookmarksOnly ? messages.filter(m => m.isBookmarked) : messages).map((msg, index) => {
+          const i = messages.findIndex(orig => orig === msg);
           const isAi = msg.sender === "ai";
           return (
             <motion.div
@@ -519,7 +725,34 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                 >
                   {isAi ? (
                     <div className="prose prose-sm prose-slate max-w-none prose-p:leading-normal prose-li:my-0.5 prose-ul:my-2 prose-ol:my-2 prose-pre:bg-slate-800 prose-pre:text-slate-50 prose-a:text-[#0F4C3A] break-words">
-                      <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      <ReactMarkdown
+                        components={{
+                          a: ({ node, ...props }) => {
+                            if (props.href && props.href.startsWith("#goto-quran-")) {
+                              const [, , , surahNum, ayatNum] = props.href.split("-");
+                              return (
+                                <a
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    if (onNavigateToSurahAyah) {
+                                      onNavigateToSurahAyah(parseInt(surahNum, 10), parseInt(ayatNum, 10));
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 font-bold text-[#0F4C3A] hover:bg-emerald-50 px-1 rounded transition-colors no-underline"
+                                  title="Baca di Al-Qur'an"
+                                >
+                                  <BookOpen className="w-3.5 h-3.5 inline text-[#ECC17A]" /> 
+                                  <span className="underline decoration-emerald-200 underline-offset-4">{props.children}</span>
+                                </a>
+                              );
+                            }
+                            return <a {...props} />;
+                          }
+                        }}
+                      >
+                        {processTextForQuranLinks(msg.text)}
+                      </ReactMarkdown>
                     </div>
                   ) : (
                     <span>{msg.text}</span>
@@ -548,6 +781,13 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                       
                       {/* MORE MENU */}
                       <button 
+                        onClick={() => toggleBookmark(i)}
+                        title={msg.isBookmarked ? "Hapus dari Bookmark" : "Simpan Bookmark"}
+                        className={`p-1.5 border border-slate-200/60 rounded-lg shadow-sm transition-all cursor-pointer ${msg.isBookmarked ? 'bg-[#0F4C3A] text-[#ECC17A]' : 'bg-white text-slate-500 hover:bg-emerald-50'}`}
+                      >
+                        <Bookmark className="w-4 h-4" />
+                      </button>
+                      <button 
                         onClick={() => setOpenMenuIndex(openMenuIndex === i ? null : i)}
                         title="Opsi Lainnya"
                         className={`p-1.5 border border-slate-200/60 rounded-lg shadow-sm transition-all cursor-pointer ${openMenuIndex === i ? 'bg-emerald-50 text-[#0F4C3A]' : 'bg-white text-slate-500 hover:bg-emerald-50'}`}
@@ -564,6 +804,15 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                             transition={{ duration: 0.15 }}
                             className="absolute top-full left-0 mt-2 min-w-[140px] bg-white border border-slate-200 shadow-xl rounded-xl p-1.5 z-10 flex flex-col gap-0.5"
                           >
+                            <button 
+                              onClick={() => {
+                                handleExportImage(msg.text, msg.timestamp);
+                                setOpenMenuIndex(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-bold tracking-wide text-slate-600 hover:text-[#0F4C3A] hover:bg-emerald-50 rounded-lg transition-all cursor-pointer uppercase"
+                            >
+                              <ImageIcon className="w-3.5 h-3.5" /> Brosur Kutipan
+                            </button>
                             <button 
                               onClick={() => {
                                 handleExportPdf(msg.text, msg.timestamp);
@@ -656,7 +905,15 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
             </div>
           )}
 
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-2 sm:gap-3 items-end">
+            <button
+              onClick={toggleListening}
+              disabled={isSending}
+              className={`w-12 h-12 shrink-0 rounded-[18px] flex items-center justify-center shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:bg-slate-200 disabled:text-slate-400 mb-1 ${isListening ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200'}`}
+              title={isListening ? "Hentikan Suara" : "Input Suara"}
+            >
+              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
             <textarea
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
