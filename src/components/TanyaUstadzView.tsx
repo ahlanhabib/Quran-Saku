@@ -206,37 +206,47 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
       let formattedContent = "";
       const blocks = cleanText.split('\n\n').filter(b => b.trim());
 
-      for (const block of blocks) {
-        const subBlocks = block.split('\n').length > 8 ? block.split('\n').filter(b => b.trim()) : [block];
+      for (let block of blocks) {
+        block = block.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '').replace(/`/g, '').trim();
+        if (!block) continue;
 
-        for (const subBlock of subBlocks) {
-          let cleanSubBlock = subBlock.replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '').replace(/`/g, '').trim();
-          if (!cleanSubBlock) continue;
+        let blockContent = "";
+        let arabicLineCount = 0;
+        
+        const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
 
-          let formatted = cleanSubBlock.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-          formatted = formatted.replace(/\*(.*?)\*/g, '<i>$1</i>');
-          formatted = formatted.replace(/### (.*?)$/g, '<h3>$1</h3>');
+        for (let line of lines) {
+          line = line.replace(/^\s*[-*]\s+/, '• ');
 
-          // Process Arabic text strings inside content
-          const arabicRegex = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s،؛؟.\-"'()\[\]{}]+)/g;
-          formatted = formatted.replace(arabicRegex, (match) => {
-            if (/[\u0600-\u06FF]/.test(match)) {
-               return `<span class="arabic-text">${match}</span>`;
-            }
-            return match;
-          });
+          let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+          formattedLine = formattedLine.replace(/\*(.*?)\*/g, '<i>$1</i>');
+          formattedLine = formattedLine.replace(/### (.*?)$/g, '<h3>$1</h3>');
+          formattedLine = formattedLine.replace(/## (.*?)$/g, '<h2>$1</h2>');
+          formattedLine = formattedLine.replace(/# (.*?)$/g, '<h1>$1</h1>');
 
-          // Check if block is predominantly Arabic
-          const arabicChars = cleanSubBlock.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || [];
-          const allLetters = cleanSubBlock.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g, '');
-          const isArabicBlock = allLetters.length > 0 && (arabicChars.length / allLetters.length) > 0.4;
+          const arabicChars = line.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || [];
+          const allLetters = line.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g, '');
+          const isLineArabic = allLetters.length > 0 && (arabicChars.length / allLetters.length) > 0.4;
           
-          if (isArabicBlock) {
-             formattedContent += `<div class="content-block arabic-block">${formatted}</div>`;
+          if (isLineArabic) {
+            arabicLineCount++;
+            blockContent += `<div dir="rtl" class="arabic-line">${formattedLine}</div>`;
           } else {
-             formattedContent += `<div class="content-block">${formatted}</div>`;
+            // Mixed line: wrap arabic chunks in <bdi>
+            const arabicRegexChunk = /([\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\s،؛؟.\-"'()\[\]{}0-9]+)/g;
+            formattedLine = formattedLine.replace(arabicRegexChunk, (match) => {
+              if (/[\u0600-\u06FF]/.test(match)) {
+                 return `<bdi dir="rtl" class="arabic-inline">${match}</bdi>`;
+              }
+              return match;
+            });
+            blockContent += `<div class="text-line">${formattedLine}</div>`;
           }
         }
+
+        const isOverallArabic = arabicLineCount > (lines.length / 2);
+        const blockClass = isOverallArabic ? "content-block arabic-block" : "content-block";
+        formattedContent += `<div class="${blockClass}">${blockContent}</div>`;
       }
 
       const htmlDoc = `
@@ -246,7 +256,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
           <meta charset="UTF-8">
           <title>Tanya Ustadz AI - Quran Saku</title>
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
+            @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
             
             @page {
               size: A4 portrait;
@@ -267,6 +277,11 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
               margin: 0;
               padding: 0;
               background-color: white;
+            }
+
+            .print-container {
+              display: block;
+              margin: 0 auto;
             }
 
             .header {
@@ -328,17 +343,34 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
               border-color: #D1EAE1;
             }
 
-            .arabic-text {
-              direction: rtl;
-              font-family: 'Scheherazade New', 'Amiri', serif;
-              font-size: 1.7em;
-              line-height: 2.1;
-              color: #0F4C3A;
-              padding: 2px 0;
-              display: inline-block;
+            .text-line {
+              margin-bottom: 6px;
+            }
+            .text-line:last-child {
+              margin-bottom: 0;
             }
 
-            h3 {
+            .arabic-line {
+              text-align: right;
+              direction: rtl;
+              font-family: 'Scheherazade New', 'Noto Sans Arabic', 'Amiri', serif;
+              font-size: 1.8em;
+              line-height: 1.8;
+              color: #0F4C3A;
+              padding: 6px 0;
+            }
+
+            .arabic-inline {
+              direction: rtl;
+              unicode-bidi: isolate;
+              font-family: 'Scheherazade New', 'Noto Sans Arabic', 'Amiri', serif;
+              font-size: 1.6em;
+              line-height: normal;
+              color: #0F4C3A;
+              padding: 0 4px;
+            }
+
+            h1, h2, h3 {
               margin: 0 0 8px;
               color: #0F4C3A;
               font-size: 13pt;
@@ -363,26 +395,31 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
               .content-block {
                 box-shadow: none;
               }
+              .print-container {
+                padding: 0;
+              }
             }
           </style>
         </head>
         <body>
-          <div class="header">
-            <div class="logo">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
-              </svg>
+          <div id="print-preparation" class="print-container">
+            <div class="header">
+              <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+              </div>
+              <h1>Quran Saku</h1>
+              <p>Jawaban AI "Tanya Ustadz" &mdash; Diterbitkan otomatis pada: ${new Date(timestamp).toLocaleString('id-ID')}</p>
             </div>
-            <h1>Quran Saku</h1>
-            <p>Jawaban AI "Tanya Ustadz" &mdash; Diterbitkan otomatis pada: ${new Date(timestamp).toLocaleString('id-ID')}</p>
-          </div>
-          
-          <div class="content">
-            ${formattedContent}
-          </div>
+            
+            <div class="content">
+              ${formattedContent}
+            </div>
 
-          <div class="footer-note">
-            <strong>Quran Saku</strong> &mdash; Semoga jawaban ini menjadi ilmu yang bermanfaat. Teruslah istiqamah.
+            <div class="footer-note">
+              <strong>Quran Saku</strong> &mdash; Semoga jawaban ini menjadi ilmu yang bermanfaat. Teruslah istiqamah.
+            </div>
           </div>
         </body>
         </html>
