@@ -209,17 +209,41 @@ ${prompt}
 Tolong jawab pertanyaan ini dengan hikmah, berikan referensi spesifik dari Al-Qur'an maupun sabda Rasulullah (Hadits) yang relevan secara tegas beserta porsi teks asli dan maknanya agar menguatkan keimanan. Pastikan mencantumkan nama Surah dan nomor ayat (misal: QS. Al-Baqarah: 255) atau perawi Hadits (misal: HR. Bukhari).
 `;
 
-      const response = await client.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: queryPrompt,
-        config: {
-          systemInstruction: "Anda adalah asisten AI 'Tanya Ustadz AI' di dalam aplikasi 'Quran Saku'. Anda adalah seorang Ulama Mufassir yang sangat berpengetahuan tentang Al-Qur'an, asbabun nuzul, serta ilmu Hadits. Tugas Anda adalah: memberikan jawaban Islami secara komprehensif yang WAJIB merujuk pada ayat-ayat suci Al-Qur'an dan juga menyertakan riwayat Hadits yang selaras (Kutubus Sittah) dalam menjawab isu umat. Di setiap jawaban yang melibatkan saran, doa, atau dalil, berikan kutipan bahasa Arab, terjemahan Indonesia, serta referensi letaknya (contoh: QS. Al-Baqarah: 120 atau HR. Bukhari). Formatlah teks menggunakan Markdown dengan rapi."
+      let retries = 2;
+      let finalResponse = null;
+      let lastError = null;
+
+      while (retries > 0) {
+        try {
+          finalResponse = await client.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: queryPrompt,
+            config: {
+              systemInstruction: "Anda adalah asisten AI 'Tanya Ustadz AI' di dalam aplikasi 'Quran Saku'. Anda adalah seorang Ulama Mufassir yang sangat berpengetahuan tentang Al-Qur'an, asbabun nuzul, serta ilmu Hadits. Tugas Anda adalah: memberikan jawaban Islami secara komprehensif yang WAJIB merujuk pada ayat-ayat suci Al-Qur'an dan juga menyertakan riwayat Hadits yang selaras (Kutubus Sittah) dalam menjawab isu umat. Di setiap jawaban yang melibatkan saran, doa, atau dalil, berikan kutipan bahasa Arab, terjemahan Indonesia, serta referensi letaknya (contoh: QS. Al-Baqarah: 120 atau HR. Bukhari). Formatlah teks menggunakan Markdown dengan rapi."
+            }
+          });
+          break; // Success, exit loop
+        } catch (error: any) {
+          lastError = error;
+          if (error.message?.includes("503") || error.message?.includes("high demand")) {
+            retries--;
+            if (retries > 0) {
+              console.log("503 High Demand hit. Retrying in 1.5 seconds...");
+              await new Promise(res => setTimeout(res, 1500));
+            }
+          } else {
+            throw error; // If it's a different error, throw immediately
+          }
         }
-      });
+      }
+
+      if (!finalResponse && lastError) {
+        throw lastError; // If all retries failed
+      }
 
       res.json({
         status: true,
-        answer: response.text,
+        answer: finalResponse?.text || "",
         isConfigured: true
       });
     } catch (error: any) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import {
@@ -12,6 +12,7 @@ import {
   Share2,
   Download,
   Volume2,
+  MoreHorizontal
 } from "lucide-react";
 
 interface ChatMessage {
@@ -35,16 +36,39 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   addToast,
   geminiApiKey,
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      sender: "ai",
-      text: "Assalamu'alaikum! Saya adalah Asisten AI 'Tanya Ustadz AI' di Quran Saku Anda. Silakan tanyakan apa saja tentang kandungan ayat, nasehat spiritual, tafsir makna, maupun petunjuk doa yang ingin Anda ketahui.",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem("tanyaUstadzHistory");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return [
+      {
+        sender: "ai",
+        text: "Assalamu'alaikum! Saya adalah Asisten AI 'Tanya Ustadz AI' di Quran Saku Anda. Silakan tanyakan apa saja tentang kandungan ayat, nasehat spiritual, tafsir makna, maupun petunjuk doa yang ingin Anda ketahui.",
+        timestamp: new Date(),
+      },
+    ];
+  });
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem("tanyaUstadzHistory", JSON.stringify(messages));
+  }, [messages]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuIndex(null);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const suggestedPrompts = [
     "Makna ketenangan jiwa dalam surat Al-Ra'd",
@@ -166,76 +190,116 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
         timestamp: new Date(),
       },
     ]);
+    localStorage.removeItem("tanyaUstadzHistory");
     addToast("Obrolan Dihapus", "Riwayat dialog dibersihkan.", "info");
   };
 
   const handleExportPdf = async (text: string, timestamp: Date) => {
-    addToast("Menyiapkan PDF...", "Harap tunggu, merender dokumen.", "info");
-    
-    // Create a temporary unmounted-looking div but actually visibly appended
-    const exportContainer = document.createElement("div");
-    exportContainer.style.position = "absolute";
-    exportContainer.style.left = "-9999px"; // Move off-screen
-    exportContainer.style.top = "0";
-    exportContainer.style.width = "600px"; // Fixed width for A4 proportion approximation
-    exportContainer.style.backgroundColor = "#FDFBF7"; // App background
-    exportContainer.style.padding = "40px";
-    exportContainer.style.fontFamily = "sans-serif";
-    exportContainer.style.color = "#0F4C3A";
-    
-    exportContainer.innerHTML = `
-      <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid rgba(15, 76, 58, 0.1); padding-bottom: 15px;">
-        <h1 style="margin: 0; font-size: 24px; font-weight: bold; color: #0F4C3A; font-family: serif;">Tanya Ustadz AI - Quran Saku</h1>
-        <p style="margin: 5px 0 0; font-size: 12px; color: #64748b;">Diterbitkan otomatis pada: ${timestamp.toLocaleString()}</p>
-      </div>
-      <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">
-        ${text}
-      </div>
-      <div style="margin-top: 30px; font-size: 10px; text-align: center; color: #94a3b8;">
-        Semoga jawaban ini menjadi ilmu yang bermanfaat. Teruslah istiqamah.
-      </div>
-    `;
+    addToast("Menyiapkan PDF...", "Harap tunggu, memproses halaman.", "info");
 
-    document.body.appendChild(exportContainer);
+    const rootContainer = document.createElement("div");
+    rootContainer.style.position = "absolute";
+    rootContainer.style.left = "-9999px";
+    rootContainer.style.top = "0";
+    rootContainer.style.width = "650px";
+    rootContainer.style.backgroundColor = "#FDFBF7";
+    rootContainer.style.fontFamily = "sans-serif";
+    rootContainer.style.color = "#334155";
+    document.body.appendChild(rootContainer);
 
     try {
-      const canvas = await html2canvas(exportContainer, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#FDFBF7"
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
-
+      const pdf = new jsPDF("p", "mm", "a4");
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 12;
+      let currentY = margin;
 
-      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Render Header
+      const headerDiv = document.createElement("div");
+      headerDiv.style.padding = "25px";
+      headerDiv.style.textAlign = "center";
+      headerDiv.style.borderBottom = "2px solid rgba(15, 76, 58, 0.1)";
+      headerDiv.style.marginBottom = "20px";
+      headerDiv.innerHTML = `
+        <h1 style="margin: 0; font-size: 26px; font-weight: bold; color: #0F4C3A; font-family: serif;">Tanya Ustadz AI - Quran Saku</h1>
+        <p style="margin: 5px 0 0; font-size: 13px; color: #64748b;">Diterbitkan otomatis pada: ${new Date(timestamp).toLocaleString('id-ID')}</p>
+      `;
+      rootContainer.appendChild(headerDiv);
+      
+      let canvas = await html2canvas(headerDiv, { scale: 2 });
+      let imgData = canvas.toDataURL("image/png");
+      let imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, currentY, pdfWidth, imgHeight);
+      currentY += imgHeight + 5;
+      
+      // Render Paragraphs chunks
+      const blocks = text.split('\n\n').filter(b => b.trim());
+      
+      for (const block of blocks) {
+        // If a block is extremely long (like a long list), split it further by single line breaks
+        const subBlocks = block.split('\n').length > 8 ? block.split('\n').filter(b => b.trim()) : [block];
 
-      while (heightLeft >= 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, pdfWidth, imgHeight);
-        heightLeft -= pageHeight;
+        for (const subBlock of subBlocks) {
+          const blockDiv = document.createElement("div");
+          blockDiv.style.padding = "4px 35px";
+          blockDiv.style.fontSize = "15px";
+          blockDiv.style.lineHeight = "1.7";
+          blockDiv.style.whiteSpace = "pre-wrap";
+          
+          let formatted = subBlock.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+          formatted = formatted.replace(/\*(.*?)\*/g, '<i>$1</i>');
+          formatted = formatted.replace(/### (.*?)$/g, '<h3 style="margin: 10px 0 5px; color:#0F4C3A;">$1</h3>');
+          
+          blockDiv.innerHTML = formatted;
+          rootContainer.appendChild(blockDiv);
+          
+          const bCanvas = await html2canvas(blockDiv, { scale: 2 });
+          const bImgData = bCanvas.toDataURL("image/png");
+          const bHeight = (bCanvas.height * pdfWidth) / bCanvas.width;
+          
+          // Check for page break
+          if (currentY + bHeight > pdfHeight - margin - 15) { // 15 reserve for footer
+            pdf.addPage();
+            currentY = margin;
+          }
+          
+          pdf.addImage(bImgData, "PNG", 0, currentY, pdfWidth, bHeight);
+          currentY += bHeight;
+          
+          rootContainer.removeChild(blockDiv);
+        }
+        // Add spacing after paragraph
+        currentY += 4;
       }
 
+      // Render Footer
+      const footerDiv = document.createElement("div");
+      footerDiv.style.padding = "25px";
+      footerDiv.style.marginTop = "30px";
+      footerDiv.style.textAlign = "center";
+      footerDiv.style.fontSize = "12px";
+      footerDiv.style.color = "#94a3b8";
+      footerDiv.style.borderTop = "1px solid rgba(15, 76, 58, 0.05)";
+      footerDiv.innerHTML = "<b>Quran Saku</b> &mdash; Semoga jawaban ini menjadi ilmu yang bermanfaat. Teruslah istiqamah.";
+      rootContainer.appendChild(footerDiv);
+
+      canvas = await html2canvas(footerDiv, { scale: 2 });
+      imgData = canvas.toDataURL("image/png");
+      imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      if (currentY + imgHeight > pdfHeight - margin) {
+        pdf.addPage();
+        currentY = margin;
+      }
+      pdf.addImage(imgData, "PNG", 0, currentY, pdfWidth, imgHeight);
+
       pdf.save("TanyaUstadzAI-Document.pdf");
-      
       addToast("Sukses", "PDF Ustadz AI berhasil diunduh.", "success");
     } catch (err) {
       console.error(err);
       addToast("Gagal", "Gagal merender PDF.", "warning");
     } finally {
-      document.body.removeChild(exportContainer);
+      document.body.removeChild(rootContainer);
     }
   };
 
@@ -327,62 +391,83 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                     <span>{msg.text}</span>
                   )}
                 </div>
-                <div className={`flex items-center gap-3 px-1 mt-1 ${isAi ? "justify-between w-full" : "justify-end"}`}>
+                <div className={`flex items-center gap-2 px-1 mt-1 ${isAi ? "justify-between w-full" : "justify-end"}`}>
                   {isAi && (
-                    <div className="flex items-center gap-1 bg-white border border-slate-200/60 rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] px-1 py-0.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 relative" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => handleSpeak(msg.text)}
                         title="Baca Jawaban"
-                        className="p-1.5 text-slate-400 hover:text-[#0F4C3A] hover:bg-emerald-50 active:bg-emerald-100/50 rounded-lg transition-all cursor-pointer"
+                        className="px-2 py-1.5 flex items-center gap-1.5 bg-white border border-slate-200/60 text-slate-500 hover:text-[#0F4C3A] hover:bg-emerald-50 active:bg-emerald-100/50 rounded-lg shadow-sm transition-all cursor-pointer text-[10px] font-bold uppercase tracking-wider"
                       >
-                        <Volume2 className="w-4 h-4" />
+                        <Volume2 className="w-3.5 h-3.5" /> Baca
                       </button>
-                      <div className="w-px h-3.5 bg-slate-200/80"></div>
                       <button 
                         onClick={() => {
                           navigator.clipboard.writeText(msg.text);
                           addToast("Disalin", "Jawaban disalin ke clipboard.", "info");
                         }}
                         title="Salin Jawaban"
-                        className="p-1.5 text-slate-400 hover:text-[#0F4C3A] hover:bg-emerald-50 active:bg-emerald-100/50 rounded-lg transition-all cursor-pointer"
+                        className="px-2 py-1.5 flex items-center gap-1.5 bg-white border border-slate-200/60 text-slate-500 hover:text-[#0F4C3A] hover:bg-emerald-50 active:bg-emerald-100/50 rounded-lg shadow-sm transition-all cursor-pointer text-[10px] font-bold uppercase tracking-wider"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3.5 h-3.5" /> Salin
                       </button>
-                      <div className="w-px h-3.5 bg-slate-200/80"></div>
+                      
+                      {/* MORE MENU */}
                       <button 
-                        onClick={() => handleExportPdf(msg.text, msg.timestamp)}
-                        title="Unduh PDF"
-                        className="p-1.5 text-slate-400 hover:text-[#0F4C3A] hover:bg-emerald-50 active:bg-emerald-100/50 rounded-lg transition-all cursor-pointer"
+                        onClick={() => setOpenMenuIndex(openMenuIndex === i ? null : i)}
+                        title="Opsi Lainnya"
+                        className={`p-1.5 border border-slate-200/60 rounded-lg shadow-sm transition-all cursor-pointer ${openMenuIndex === i ? 'bg-emerald-50 text-[#0F4C3A]' : 'bg-white text-slate-500 hover:bg-emerald-50'}`}
                       >
-                        <Download className="w-4 h-4" />
+                        <MoreHorizontal className="w-4 h-4" />
                       </button>
-                      <div className="w-px h-3.5 bg-slate-200/80"></div>
-                      <button 
-                        onClick={async () => {
-                          if (navigator.share) {
-                            try {
-                              await navigator.share({
-                                title: "Tanya Ustadz AI - Quran Saku",
-                                text: msg.text,
-                              });
-                            } catch (e) {
-                              console.log("Membagikan dibatalkan");
-                            }
-                          } else {
-                            navigator.clipboard.writeText(msg.text);
-                            addToast("Disalin", "Jawaban disalin karena browser tidak mendukung Web Share API.", "info");
-                          }
-                        }}
-                        title="Bagikan Jawaban"
-                        className="p-1.5 text-slate-400 hover:text-[#0F4C3A] hover:bg-emerald-50 active:bg-emerald-100/50 rounded-lg transition-all cursor-pointer"
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </button>
+
+                      <AnimatePresence>
+                        {openMenuIndex === i && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 5, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute top-full left-0 mt-2 min-w-[140px] bg-white border border-slate-200 shadow-xl rounded-xl p-1.5 z-10 flex flex-col gap-0.5"
+                          >
+                            <button 
+                              onClick={() => {
+                                handleExportPdf(msg.text, msg.timestamp);
+                                setOpenMenuIndex(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-bold tracking-wide text-slate-600 hover:text-[#0F4C3A] hover:bg-emerald-50 rounded-lg transition-all cursor-pointer uppercase"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Unduh PDF
+                            </button>
+                            <button 
+                              onClick={async () => {
+                                setOpenMenuIndex(null);
+                                if (navigator.share) {
+                                  try {
+                                    await navigator.share({
+                                      title: "Tanya Ustadz AI - Quran Saku",
+                                      text: msg.text,
+                                    });
+                                  } catch (e) {
+                                    // ignore
+                                  }
+                                } else {
+                                  navigator.clipboard.writeText(msg.text);
+                                  addToast("Disalin", "Browser tidak mendukung Share, teks disalin.", "info");
+                                }
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-bold tracking-wide text-slate-600 hover:text-[#0F4C3A] hover:bg-emerald-50 rounded-lg transition-all cursor-pointer uppercase"
+                            >
+                              <Share2 className="w-3.5 h-3.5" /> Bagikan
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
 
-                  <span className="text-[10px] text-slate-400 font-bold tracking-wider opacity-70 shrink-0 self-end mb-1">
-                    {msg.timestamp.toLocaleTimeString([], {
+                  <span className="text-[10px] text-slate-400 font-bold tracking-wider opacity-70 shrink-0 self-end mb-1.5">
+                    {new Date(msg.timestamp).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
