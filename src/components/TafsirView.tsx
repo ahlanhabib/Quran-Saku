@@ -43,7 +43,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
     const fetchSurahs = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("https://equran.id/api/v2/surat");
+        const response = await fetch("/api/equran/surat");
         if (!response.ok) throw new Error();
         const res = await response.json();
 
@@ -71,7 +71,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
   const handleSelectSurah = async (nomor: number) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`https://equran.id/api/v2/tafsir/${nomor}`);
+      const response = await fetch(`/api/equran/tafsir/${nomor}`);
       if (!response.ok) throw new Error();
       const res = await response.json();
 

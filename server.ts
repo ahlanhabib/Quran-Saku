@@ -164,16 +164,82 @@ async function startServer() {
     }
   });
 
-  // API Route - Get Quran Surah Tafsir
-  app.get("/api/quran/tafsir/:nomor", async (req, res) => {
+  // API Route - Get Quran Surah Tafsir (EQuran v2 API)
+  app.get("/api/equran/surat", async (req, res) => {
     try {
-      const { nomor } = req.params;
-      const response = await fetch(`https://api.quran.gading.dev/surah/${nomor}`);
-      if (!response.ok) throw new Error(`Gagal mengambil tafsir surah nomor ${nomor}`);
-      const data = await response.json();
-      res.json(data);
+      const response = await fetch("https://equran.id/api/v2/surat");
+      if (!response.ok) throw new Error("Gagal mengambil daftar surat");
+      res.json(await response.json());
     } catch (error: any) {
       res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
+  app.get("/api/equran/tafsir/:nomor", async (req, res) => {
+    try {
+      const { nomor } = req.params;
+      const response = await fetch(`https://equran.id/api/v2/tafsir/${nomor}`);
+      if (!response.ok) throw new Error(`Gagal mengambil tafsir surah nomor ${nomor}`);
+      res.json(await response.json());
+    } catch (error: any) {
+      res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
+  // API Route - Reverse Geocode
+  app.get("/api/ext/reverse-geocode", async (req, res) => {
+    try {
+      const q = new URLSearchParams(req.query as Record<string, string>).toString();
+      const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${q}`);
+      if (!response.ok) throw new Error("Gagal mengambil alokasi geocode");
+      res.json(await response.json());
+    } catch (error: any) {
+      res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
+  // API Route - Aladhan Timings
+  app.get("/api/ext/aladhan/timings/:date", async (req, res) => {
+    try {
+      const q = new URLSearchParams(req.query as Record<string, string>).toString();
+      const response = await fetch(`https://api.aladhan.com/v1/timings/${req.params.date}?${q}`);
+      if (!response.ok) throw new Error("Gagal");
+      res.json(await response.json());
+    } catch (error: any) {
+       res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
+  // API Route - Aladhan Calendar
+  app.get("/api/ext/aladhan/calendar/:month/:year", async (req, res) => {
+    try {
+      const response = await fetch(`https://api.aladhan.com/v1/gToHCalendar/${req.params.month}/${req.params.year}`);
+      if (!response.ok) throw new Error("Gagal");
+      res.json(await response.json());
+    } catch (error: any) {
+       res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
+  // API Route - Hadith
+  app.get("/api/ext/hadith/books", async (req, res) => {
+    try {
+      const response = await fetch("https://api.hadith.gading.dev/books");
+      if (!response.ok) throw new Error("Gagal");
+      res.json(await response.json());
+    } catch (error: any) {
+       res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
+  app.get("/api/ext/hadith/books/:id", async (req, res) => {
+    try {
+      const q = new URLSearchParams(req.query as Record<string, string>).toString();
+      const response = await fetch(`https://api.hadith.gading.dev/books/${req.params.id}?${q}`);
+      if (!response.ok) throw new Error("Gagal");
+      res.json(await response.json());
+    } catch (error: any) {
+       res.status(500).json({ status: false, message: error.message });
     }
   });
 

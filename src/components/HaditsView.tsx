@@ -44,7 +44,7 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
   useEffect(() => {
     const fetchBooks = async () => {
       try {
-        const res = await fetch("https://api.hadith.gading.dev/books");
+        const res = await fetch("/api/ext/hadith/books");
         if (!res.ok) throw new Error();
         const payload = await res.json();
 
@@ -67,7 +67,7 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
 
     try {
       const res = await fetch(
-        `https://api.hadith.gading.dev/books/${book.id}?range=${RANGE}`,
+        `/api/ext/hadith/books/${book.id}?range=${RANGE}`,
       );
       if (!res.ok) throw new Error();
       const payload = await res.json();

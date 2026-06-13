@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "motion/react";
-import html2canvas from "html2canvas";
+import * as htmlToImage from "html-to-image";
+import { toPng, toJpeg } from "html-to-image";
+import { fontRegularBase64, fontBoldBase64 } from "../fonts";
 import {
   Send,
   Bot,
@@ -17,7 +19,10 @@ import {
   MicOff,
   Bookmark,
   Image as ImageIcon,
-  BookOpen
+  BookOpen,
+  History,
+  Trash2,
+  Plus
 } from "lucide-react";
 import { STATIC_SURAHS } from "../data";
 
@@ -26,6 +31,13 @@ interface ChatMessage {
   text: string;
   timestamp: Date;
   isBookmarked?: boolean;
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  updatedAt: Date;
+  messages: ChatMessage[];
 }
 
 interface TanyaUstadzViewProps {
@@ -40,7 +52,8 @@ interface TanyaUstadzViewProps {
 }
 
 const processTextForQuranLinks = (rawText: string) => {
-  return rawText.replace(/QS\.\s*([A-Za-z-'\s]+):\s*(\d+)(?:-\d+)?/gi, (match, surahName, ayatNumber) => {
+  // Matches "QS. Al-Baqarah: 201", "Q.S. Al Baqarah : 201", "Surat Al-Baqarah ayat 201"
+  return rawText.replace(/(?:Q\.?S\.?|Surat|Surah)\s*([A-Za-z-'\s]+)(?:\s*:\s*|\s+ayat\s+)(\d+)(?:-\d+)?/gi, (match, surahName, ayatNumber) => {
     // Normalization handles prefixes like "Ali 'Imran", removes spaces/punctuation for flexible matching
     const searchName = surahName.trim().toLowerCase().replace(/[^a-z]/g, "");
     const matchedSurah = STATIC_SURAHS.find(
@@ -59,24 +72,90 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   geminiApiKey,
   onNavigateToSurahAyah,
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem("tanyaUstadzHistory");
+  const initialMessage: ChatMessage = {
+    sender: "ai",
+    text: "Assalamu'alaikum! Saya adalah Asisten AI 'Tanya Ustadz AI' di Quran Saku Anda. Silakan tanyakan apa saja tentang kandungan ayat, nasehat spiritual, tafsir makna, maupun petunjuk doa yang ingin Anda ketahui.",
+    timestamp: new Date(),
+  };
+
+  const [sessions, setSessionsState] = useState<ChatSession[]>(() => {
+    const saved = localStorage.getItem("tanyaUstadzSessions");
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
+        return parsed.map((s: any) => ({
+          ...s,
+          updatedAt: new Date(s.updatedAt),
+          messages: s.messages.map((m: any) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          })),
+        }));
       } catch (e) {
         console.error(e);
       }
     }
-    return [
-      {
-        sender: "ai",
-        text: "Assalamu'alaikum! Saya adalah Asisten AI 'Tanya Ustadz AI' di Quran Saku Anda. Silakan tanyakan apa saja tentang kandungan ayat, nasehat spiritual, tafsir makna, maupun petunjuk doa yang ingin Anda ketahui.",
-        timestamp: new Date(),
-      },
-    ];
+    
+    // Migration from old single history
+    const oldSaved = localStorage.getItem("tanyaUstadzHistory");
+    if (oldSaved) {
+      try {
+        const parsed = JSON.parse(oldSaved);
+        if (parsed && parsed.length > 1) { // has real interaction
+          return [{
+            id: Date.now().toString(),
+            title: "Percakapan Sebelumnya",
+            updatedAt: new Date(),
+            messages: parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+          }];
+        }
+      } catch (e) {}
+    }
+    return [];
   });
+
+  const [currentSessionId, setCurrentSessionId] = useState<string>(
+    sessions.length > 0 ? sessions[0].id : Date.now().toString()
+  );
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const currentSession = sessions.find((s) => s.id === currentSessionId);
+  const messages = currentSession ? currentSession.messages : [initialMessage];
+
+  const setMessages = (updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
+    setSessionsState((prevSessions) => {
+      const sessionIndex = prevSessions.findIndex((s) => s.id === currentSessionId);
+      const currentMessages = sessionIndex >= 0 ? prevSessions[sessionIndex].messages : [initialMessage];
+      
+      const newMessages = typeof updater === "function" ? updater(currentMessages) : updater;
+      
+      // Determine session title
+      let title = "Sesi Baru";
+      if (newMessages.length > 1) {
+        const firstUserMsg = newMessages.find((m) => m.sender === "user");
+        if (firstUserMsg) {
+          title = firstUserMsg.text.slice(0, 30) + (firstUserMsg.text.length > 30 ? "..." : "");
+        }
+      }
+
+      const nextSession: ChatSession = {
+        id: currentSessionId,
+        title,
+        updatedAt: new Date(),
+        messages: newMessages,
+      };
+
+      if (sessionIndex >= 0) {
+        const copy = [...prevSessions];
+        copy[sessionIndex] = nextSession;
+        return copy.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      } else {
+        return [nextSession, ...prevSessions].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      }
+    });
+  };
+
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
@@ -89,8 +168,8 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    localStorage.setItem("tanyaUstadzHistory", JSON.stringify(messages));
-  }, [messages]);
+    localStorage.setItem("tanyaUstadzSessions", JSON.stringify(sessions));
+  }, [sessions]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -190,7 +269,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
 
       if (geminiApiKey && geminiApiKey.trim() !== "") {
         const sysInstruct =
-          "Anda adalah asisten AI 'Tanya Ustadz AI' di dalam aplikasi 'Quran Saku'. Anda adalah seorang Ulama Mufassir yang sangat berpengetahuan tentang Al-Qur'an, asbabun nuzul, serta ilmu Hadits. Tugas Anda adalah: memberikan jawaban Islami secara komprehensif yang WAJIB merujuk pada ayat-ayat suci Al-Qur'an dan juga menyertakan riwayat Hadits yang selaras (Kutubus Sittah) dalam menjawab isu umat. Di setiap jawaban yang melibatkan saran, doa, atau dalil, berikan kutipan bahasa Arab, terjemahan Indonesia, serta referensi letaknya (contoh: QS. Al-Baqarah: 120 atau HR. Bukhari). Formatlah teks menggunakan Markdown dengan rapi.";
+          "Anda adalah asisten AI 'Tanya Ustadz AI' di aplikasi 'Quran Saku'. Anda adalah Ulama Mufassir yang sangat berpengetahuan tentang Al-Qur'an, asbabun nuzul, dan ilmu Hadits. Tugas Anda: memberikan jawaban Islami komprehensif yang WAJIB merujuk pada ayat suci Al-Qur'an dan riwayat Hadits (Kutubus Sittah). Saat mengutip ayat atau hadits, tuliskan langsung teks Arabnya tanpa menambahkan embel-embel label seperti 'Arab:' atau 'Teks Arab:'. Langsung saja tulis ayatnya, berikan terjemahan, dan referensinya secara natural (contoh: QS. Al-Baqarah: 120 atau HR. Bukhari). Formatlah menggunakan Markdown yang rapi.";
 
         const qp = `Pertanyaan Pengguna:\n${textToSend}\n\nTolong jawab pertanyaan ini dengan hikmah, berikan referensi spesifik dari Al-Qur'an maupun sabda Rasulullah (Hadits) yang relevan secara tegas beserta porsi teks asli dan maknanya agar menguatkan keimanan.`;
 
@@ -285,15 +364,8 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   };
 
   const handleClearChat = () => {
-    setMessages([
-      {
-        sender: "ai",
-        text: "Pesan obrolan tadabbur dibersihkan. Tanyakan petunjuk Al-Qur'an dan bimbingan rohani yang Anda butuhkan kembali.",
-        timestamp: new Date(),
-      },
-    ]);
-    localStorage.removeItem("tanyaUstadzHistory");
-    addToast("Obrolan Dihapus", "Riwayat dialog dibersihkan.", "info");
+    setCurrentSessionId(Date.now().toString());
+    addToast("Sesi Baru", "Memulai percakapan baru.", "info");
   };
 
   const handleExportPdf = async (text: string, timestamp: Date) => {
@@ -539,28 +611,67 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
   };
 
   const handleExportImage = async (text: string, timestamp: Date) => {
-    addToast("Membuat Gambar...", "Mempersiapkan kutipan gambar.", "info");
+    addToast("Membuat Gambar...", "Mempersiapkan kutipan cerdas.", "info");
+    
+    const wrapper = document.createElement("div");
+    Object.assign(wrapper.style, {
+      position: 'absolute',
+      top: '0',
+      left: '0',
+      zIndex: '-9999', // Behind the app ui
+      pointerEvents: 'none',
+      opacity: '1'
+    });
+
     const rootContainer = document.createElement("div");
-    rootContainer.style.position = "absolute";
-    rootContainer.style.left = "-9999px";
-    rootContainer.style.top = "0";
-    rootContainer.style.width = "1080px";
-    rootContainer.style.backgroundColor = "#0F4C3A";
-    rootContainer.style.color = "#FFFFFF";
-    rootContainer.style.padding = "80px";
-    rootContainer.style.fontFamily = "sans-serif";
-    rootContainer.style.boxSizing = "border-box";
+    Object.assign(rootContainer.style, {
+      width: '1080px',
+      minHeight: '1080px',
+      backgroundColor: '#f8fafc', // slate-50
+      color: '#0F4C3A',
+      padding: '100px',
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      position: 'relative'
+    });
     
+    // Smart Quote Extraction
     const cleanText = text.replace(/[\x00-\x09\x0B-\x1F\x7F-\x9F]/g, "").replace(/```[a-zA-Z]*\n?/g, '').replace(/```/g, '').replace(/`/g, '');
-    let lines = cleanText.split('\n').filter(l => l.trim().length > 0);
+    const allLines = cleanText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
-    if (lines.length > 7) {
-      lines = lines.slice(0, 7);
-      lines.push("...");
+    let selectedLines: string[] = [];
+    let arabicIndex = -1;
+    for (let i = 0; i < allLines.length; i++) {
+       const line = allLines[i];
+       const arabicChars = line.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || [];
+       const allLetters = line.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g, '');
+       const isArabic = allLetters.length > 0 && (arabicChars.length / allLetters.length) > 0.4;
+       if (isArabic && line.length > 10) {
+         arabicIndex = i;
+         break;
+       }
+    }
+    
+    if (arabicIndex !== -1) {
+      let endIndex = Math.min(arabicIndex + 1, allLines.length - 1);
+      // Try to include at least one translation line, maybe 2 if they're short
+      if (endIndex < allLines.length - 1 && allLines[endIndex].length < 60) {
+        endIndex = Math.min(endIndex + 1, allLines.length - 1);
+      }
+      selectedLines = allLines.slice(arabicIndex, endIndex + 1);
+    } else {
+      const substantiveLine = allLines.find(l => l.length > 80 && !l.toLowerCase().includes('assalamu') && !l.toLowerCase().includes('waalaikumsalam') && !l.toLowerCase().includes('alhamdulillah'));
+      if (substantiveLine) {
+         selectedLines = [substantiveLine];
+      } else {
+         selectedLines = allLines.slice(0, 2);
+      }
     }
 
     let htmlContent = "";
-    for (let line of lines) {
+    for (let line of selectedLines) {
       let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/### (.*?)$/g, '<strong>$1</strong>');
       const arabicChars = line.match(/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g) || [];
       const allLetters = line.replace(/[^a-zA-Z\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g, '');
@@ -574,13 +685,32 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
 
     rootContainer.innerHTML = `
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
-        .img-content { font-family: 'Inter', sans-serif; font-size: 34px; line-height: 1.6; }
-        .img-arabic { font-family: 'Scheherazade New', 'Noto Sans Arabic', 'Amiri', serif; font-size: 60px; line-height: 1.8; direction: rtl; text-align: right; color: #ECC17A; margin: 30px 0; }
-        .img-footer { margin-top: 60px; border-top: 2px solid rgba(236, 193, 122, 0.3); padding-top: 40px; display: flex; justify-content: space-between; align-items: center; }
-        .img-footer-brand { font-size: 36px; font-weight: bold; color: #ECC17A; font-family: serif; margin-bottom: 8px; }
-        .img-footer-sub { font-size: 24px; color: rgba(255,255,255,0.7); }
+        @font-face {
+          font-family: 'Scheherazade New';
+          font-style: normal;
+          font-weight: 400;
+          src: url(${fontRegularBase64}) format('truetype');
+        }
+        @font-face {
+          font-family: 'Scheherazade New';
+          font-style: normal;
+          font-weight: 700;
+          src: url(${fontBoldBase64}) format('truetype');
+        }
+        .decorative-border {
+          position: absolute;
+          top: 40px; right: 40px; bottom: 40px; left: 40px;
+          border: 2px solid rgba(15, 76, 58, 0.15);
+          border-radius: 24px;
+          pointer-events: none;
+        }
+        .img-content { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 38px; line-height: 1.6; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; z-index: 10; position: relative;}
+        .img-arabic { font-family: 'Scheherazade New', 'Amiri', 'Noto Sans Arabic', serif; font-size: 68px; line-height: 1.8; direction: rtl; text-align: right; color: #0F4C3A; margin: 40px 0; font-weight: 700; }
+        .img-footer { margin-top: 60px; border-top: 2px solid rgba(15, 76, 58, 0.15); padding-top: 40px; display: flex; justify-content: space-between; align-items: center; z-index: 10; position: relative;}
+        .img-footer-brand { font-size: 42px; font-weight: bold; color: #0F4C3A; font-family: serif; margin-bottom: 8px; }
+        .img-footer-sub { font-size: 26px; color: rgba(15, 76, 58, 0.7); font-family: 'Inter', sans-serif;}
       </style>
+      <div class="decorative-border"></div>
       <div class="img-content">
         ${htmlContent}
       </div>
@@ -590,20 +720,35 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
            <div class="img-footer-sub">Tanya Ustadz AI &mdash; ${new Date(timestamp).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
         </div>
         <div>
-          <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#ECC17A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="#0F4C3A" stroke-width="1.5" opacity="0.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
           </svg>
         </div>
       </div>
     `;
-    document.body.appendChild(rootContainer);
+    
+    wrapper.appendChild(rootContainer);
+    document.body.appendChild(wrapper);
 
     try {
-      const canvas = await html2canvas(rootContainer, { scale: 2, useCORS: true, logging: false });
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      if (document.fonts) await document.fonts.ready;
+      await new Promise(r => setTimeout(r, 600)); // padding time to process SVG fully
+      
+      const config = { 
+        quality: 1, 
+        pixelRatio: 2, 
+        backgroundColor: '#f8fafc',
+        width: 1080,
+        height: rootContainer.scrollHeight > 1080 ? rootContainer.scrollHeight : 1080,
+        skipFonts: true,
+      };
+
+      await toPng(rootContainer, config); // Workaround warmup
+      const imgData = await toPng(rootContainer, config);
+      
       const link = document.createElement('a');
       link.href = imgData;
-      link.download = "TanyaUstadzAI-Kutipan.jpg";
+      link.download = "TanyaUstadzAI-Kutipan.png";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -612,7 +757,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
       console.error(err);
       addToast("Gagal", "Gagal merender gambar.", "warning");
     } finally {
-      document.body.removeChild(rootContainer);
+      document.body.removeChild(wrapper);
     }
   };
 
@@ -669,18 +814,20 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
 
         <div className="flex gap-2 items-center mt-2 shrink-0">
           <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap bg-white/5 text-[#ECC17A] hover:bg-white/10"
+            title="Riwayat Sesi"
+          >
+            <History className="w-3.5 h-3.5" />
+            Riwayat
+          </button>
+          <button
             onClick={() => setShowBookmarksOnly(!showBookmarksOnly)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${showBookmarksOnly ? "bg-[#ECC17A] text-[#0F4C3A]" : "bg-white/5 text-[#ECC17A] hover:bg-white/10"}`}
             title="Filter Bookmark Jawaban"
           >
             <Bookmark className={`w-3.5 h-3.5 ${showBookmarksOnly ? "fill-[#0F4C3A]" : ""}`} />
-            {showBookmarksOnly ? "Semua" : "Bookmark"}
-          </button>
-          <button
-            onClick={handleClearChat}
-            className="shrink-0 text-[10px] sm:text-xs text-[#ECC17A] hover:text-white px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 font-bold transition-all cursor-pointer whitespace-nowrap"
-          >
-            Hapus
+            <span className="hidden sm:inline">{showBookmarksOnly ? "Semua" : "Bookmark"}</span>
           </button>
         </div>
       </div>
@@ -729,7 +876,11 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                         components={{
                           a: ({ node, ...props }) => {
                             if (props.href && props.href.startsWith("#goto-quran-")) {
-                              const [, , , surahNum, ayatNum] = props.href.split("-");
+                              const parts = props.href.split("-");
+                              // parts: ["#goto", "quran", "2", "201"]
+                              const surahNum = parts[2];
+                              const ayatNum = parts[3];
+                              
                               return (
                                 <a
                                   href="#"
@@ -938,6 +1089,88 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Sessions Sidebar / Drawer */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex justify-end"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-sm h-full flex flex-col shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-[#0F4C3A] text-white">
+                <h3 className="font-bold font-serif text-lg text-[#ECC17A]">Riwayat Dialog</h3>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2 hover:bg-white/10 rounded-xl transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+                <button
+                   onClick={() => {
+                     handleClearChat();
+                     setIsSidebarOpen(false);
+                   }}
+                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-[#0F4C3A]/30 text-[#0F4C3A] hover:bg-emerald-50 mb-2 transition-all font-bold cursor-pointer"
+                >
+                   <Plus className="w-5 h-5" /> Mulai Sesi Baru
+                </button>
+                
+                {sessions.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                       setCurrentSessionId(s.id);
+                       setIsSidebarOpen(false);
+                       addToast("Sesi Dimuat", "Membuka riwayat percakapan.", "info");
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-1 ${currentSessionId === s.id ? 'border-[#0F4C3A] bg-emerald-50' : 'border-slate-200 hover:border-[#0F4C3A]/50 bg-white'}`}
+                  >
+                     <div className="flex justify-between items-start">
+                       <h4 className="font-bold text-sm text-slate-800 line-clamp-2 pr-2 leading-tight">{s.title}</h4>
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           const nextSessions = sessions.filter(ss => ss.id !== s.id);
+                           setSessionsState(nextSessions);
+                           if (currentSessionId === s.id) {
+                             if (nextSessions.length > 0) {
+                               setCurrentSessionId(nextSessions[0].id);
+                             } else {
+                               handleClearChat();
+                             }
+                           }
+                           addToast("Dihapus", "Sesi telah dihapus", "notification");
+                         }}
+                         className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
+                         title="Hapus Sesi"
+                       >
+                         <Trash2 className="w-4 h-4" />
+                       </button>
+                     </div>
+                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
+                       {s.messages.length - 1 > 0 ? `${s.messages.length - 1} Pesan User` : "Sesi Kosong"} • {new Date(s.updatedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' })}
+                     </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* PDF Preview Modal */}
       <AnimatePresence>

@@ -104,7 +104,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
 
       const resolvedId = resolveCityId(cityId);
       const response = await fetch(
-        `https://api.myquran.com/v3/sholat/jadwal/${resolvedId}/${dateKey}`,
+        `/api/sholat/jadwal/${resolvedId}/${yr}/${mo}/${dy}`,
       );
       if (!response.ok) throw new Error("Gagal mengunduh jadwal");
 
@@ -291,7 +291,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
     setIsSearching(true);
     try {
       const response = await fetch(
-        `https://api.myquran.com/v3/sholat/kota/cari/${encodeURIComponent(searchQuery)}`,
+        `/api/sholat/kota/cari/${encodeURIComponent(searchQuery)}`,
       );
       if (!response.ok) throw new Error();
       const payload = await response.json();
@@ -364,7 +364,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
           let displayName = "Lokasi Saat Ini";
           try {
             const r = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=id`,
+              `/api/ext/reverse-geocode?latitude=${lat}&longitude=${lon}&localityLanguage=id`,
             );
             if (r.ok) {
               const data = await r.json();
@@ -382,7 +382,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
           const dy = now.getDate();
 
           const aladhanRes = await fetch(
-            `https://api.aladhan.com/v1/timings/${dy}-${mo}-${yr}?latitude=${lat}&longitude=${lon}&method=11`,
+            `/api/ext/aladhan/timings/${dy}-${mo}-${yr}?latitude=${lat}&longitude=${lon}&method=11`,
           );
           if (!aladhanRes.ok)
             throw new Error("Gagal mengambil jadwal berdasar koordinat");
@@ -455,7 +455,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
   const getIPLocation = async () => {
     try {
       const r = await fetch(
-        "https://api.bigdatacloud.net/data/reverse-geocode-client",
+        "/api/ext/reverse-geocode",
       );
       if (!r.ok) return;
       const data = await r.json();
@@ -473,7 +473,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
       for (const kw of keywords) {
         if (!kw) continue;
         const s = await fetch(
-          `https://api.myquran.com/v3/sholat/kota/cari/${encodeURIComponent(kw)}`,
+          `/api/sholat/kota/cari/${encodeURIComponent(kw)}`,
         );
         if (!s.ok) continue;
         const sData = await s.json();

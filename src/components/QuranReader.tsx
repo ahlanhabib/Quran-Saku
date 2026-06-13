@@ -134,7 +134,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
         }
 
         if (navigator.onLine) {
-          const response = await fetch("https://api.quran.gading.dev/surah");
+          const response = await fetch("/api/quran/surah");
           if (!response.ok) throw new Error();
           const payload = await response.json();
           if (payload.code === 200 && Array.isArray(payload.data)) {
@@ -183,13 +183,25 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
 
   useEffect(() => {
     if (surahDetail && pendingScrollAyat) {
-      const ayatEl = itemRefs.current[pendingScrollAyat];
-      if (ayatEl) {
-        setTimeout(() => {
-          ayatEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 300);
-        setPendingScrollAyat(null);
-      }
+      let attempts = 0;
+      const checkAndScroll = () => {
+        const ayatEl = itemRefs.current[pendingScrollAyat];
+        if (ayatEl) {
+          setTimeout(() => {
+            ayatEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            // add a subtle highlight animation by toggling a class
+            ayatEl.classList.add("ring-4", "ring-[#ECC17A]", "scale-[1.02]", "transition-all", "duration-500");
+            setTimeout(() => {
+               ayatEl.classList.remove("ring-4", "ring-[#ECC17A]", "scale-[1.02]");
+            }, 2000);
+          }, 300);
+          setPendingScrollAyat(null);
+        } else if (attempts < 20) {
+          attempts++;
+          setTimeout(checkAndScroll, 100);
+        }
+      };
+      checkAndScroll();
     }
   }, [surahDetail, pendingScrollAyat]);
 
@@ -207,6 +219,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
     setSelectedSurah(surah);
     setIsLoadingDetail(true);
     setSurahDetail(null);
+    itemRefs.current = {}; // Clear old refs before loading new surah
     try {
       const cacheKey = `surah_detail_${surah.nomor}`;
       const cachedDetail = await get(cacheKey);
@@ -218,7 +231,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
 
       if (navigator.onLine || !cachedDetail) {
         const response = await fetch(
-          `https://api.quran.gading.dev/surah/${surah.nomor}`,
+          `/api/quran/surah/${surah.nomor}`,
         );
         if (!response.ok) throw new Error();
         const payload = await response.json();

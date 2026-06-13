@@ -108,7 +108,7 @@ export const ArahKiblatView: React.FC<ArahKiblatViewProps> = ({
           try {
             // Optional: Get locality name
             const r = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`,
+              `/api/ext/reverse-geocode?latitude=${lat}&longitude=${lng}&localityLanguage=id`,
             );
             if (r.ok) {
               const data = await r.json();
