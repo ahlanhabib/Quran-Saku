@@ -33,6 +33,8 @@ export default defineConfig(() => {
           ]
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 5000000,
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
               urlPattern: /\/api\/quran\/.*/i,

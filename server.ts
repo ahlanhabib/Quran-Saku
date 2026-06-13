@@ -175,6 +175,17 @@ async function startServer() {
     }
   });
 
+  app.get("/api/equran/surat/:nomor", async (req, res) => {
+    try {
+      const { nomor } = req.params;
+      const response = await fetch(`https://equran.id/api/v2/surat/${nomor}`);
+      if (!response.ok) throw new Error(`Gagal mengambil detail surat nomor ${nomor}`);
+      res.json(await response.json());
+    } catch (error: any) {
+      res.status(500).json({ status: false, message: error.message });
+    }
+  });
+
   app.get("/api/equran/tafsir/:nomor", async (req, res) => {
     try {
       const { nomor } = req.params;
@@ -404,7 +415,11 @@ Tolong jawab pertanyaan ini dengan hikmah, berikan referensi spesifik dari Al-Qu
 
   // Health check endpoint
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", url: req.url, originalUrl: req.originalUrl, path: req.path });
+  });
+
+  app.get("/debug-url", (req, res) => {
+    res.json({ url: req.url, originalUrl: req.originalUrl, path: req.path });
   });
 
   // Support Vite dev middleware or serve compiled production bundle
