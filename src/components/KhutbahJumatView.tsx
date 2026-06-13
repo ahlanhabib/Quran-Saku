@@ -72,7 +72,14 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
         body: JSON.stringify({ tema: aiTema, judul: aiJudul, apiKey })
       });
 
-      const data = await response.json();
+      let data;
+      const responseText = await response.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error(!response.ok ? `Error ${response.status}: Server sedang kendala. Coba lagi.` : "Respons server tidak valid.");
+      }
+      
       if (!response.ok) {
         throw new Error(data.error || "Gagal membuat khutbah");
       }
@@ -148,7 +155,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
                     className="w-full bg-white border border-slate-100 rounded-2xl p-4 flex flex-col gap-2 text-left hover:border-slate-300 transition-all active:scale-[0.98] shadow-xs"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                      <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md text-[10px] font-bold max-w-[80%] truncate inline-block">
                         {khutbah.tema}
                       </span>
                     </div>
