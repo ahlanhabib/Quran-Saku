@@ -238,12 +238,12 @@ export default function App() {
         try {
           const cache = await caches.open('quran-api-cache');
           const urlsToCache = [
-            '/api/quran/surah',
-            '/api/quran/surah/1', // Al-Fatihah
-            '/api/quran/surah/18',// Al-Kahf
-            '/api/quran/surah/36',// Yasin
-            '/api/quran/surah/56',// Al-Waqi'ah
-            '/api/quran/surah/67',// Al-Mulk
+            'https://api.quran.gading.dev/surah',
+            'https://api.quran.gading.dev/surah/1', // Al-Fatihah
+            'https://api.quran.gading.dev/surah/18',// Al-Kahf
+            'https://api.quran.gading.dev/surah/36',// Yasin
+            'https://api.quran.gading.dev/surah/56',// Al-Waqi'ah
+            'https://api.quran.gading.dev/surah/67',// Al-Mulk
           ];
           
           for (const url of urlsToCache) {

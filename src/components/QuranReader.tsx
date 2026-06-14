@@ -134,7 +134,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
         }
 
         if (navigator.onLine) {
-          const response = await fetch("/api/quran/surah");
+          const response = await fetch("https://api.quran.gading.dev/surah");
           if (!response.ok) throw new Error();
           const payload = await response.json();
           if (payload.code === 200 && Array.isArray(payload.data)) {
@@ -231,7 +231,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
 
       if (navigator.onLine || !cachedDetail) {
         const response = await fetch(
-          `/api/quran/surah/${surah.nomor}`,
+          `https://api.quran.gading.dev/surah/${surah.nomor}`,
         );
         if (!response.ok) throw new Error();
         const payload = await response.json();

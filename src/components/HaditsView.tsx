@@ -44,12 +44,16 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
   useEffect(() => {
     const fetchBooks = async () => {
       try {
-        const res = await fetch("/api/ext/hadith/books");
+        const res = await fetch("https://hadis-api-id.vercel.app/hadith");
         if (!res.ok) throw new Error("Server Hadits Pusat Sedang Gangguan");
         const payload = await res.json();
 
-        if (payload.code === 200 && payload.data) {
-          setBooks(payload.data);
+        if (Array.isArray(payload)) {
+          setBooks(payload.map((i: any) => ({
+            id: i.slug,
+            name: i.name,
+            available: i.total
+          })));
         }
       } catch (err) {
         addToast("Gagal Memuat Kitab", "Periksa koneksi internet.", "warning");
@@ -67,13 +71,17 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
 
     try {
       const res = await fetch(
-        `/api/ext/hadith/books/${book.id}?range=${RANGE}`,
+        `https://hadis-api-id.vercel.app/hadith/${book.id}?page=1&limit=50`,
       );
       if (!res.ok) throw new Error("Server Hadits Pusat Sedang Gangguan");
       const payload = await res.json();
 
-      if (payload.code === 200 && payload.data && payload.data.hadiths) {
-        setHadiths(payload.data.hadiths);
+      if (payload.items) {
+        setHadiths(payload.items.map((i: any) => ({
+          number: i.number,
+          arab: i.arab,
+          id: i.id
+        })));
       }
     } catch {
       addToast("Gagal Memuat Hadits", "Terjadi kesalahan koneksi.", "warning");
