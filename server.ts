@@ -235,9 +235,17 @@ async function startServer() {
   // API Route - Hadith
   app.get("/api/ext/hadith/books", async (req, res) => {
     try {
-      const response = await fetch("https://api.hadith.gading.dev/books");
-      if (!response.ok) throw new Error("Gagal");
-      res.json(await response.json());
+      const response = await fetch("https://hadis-api-id.vercel.app/hadith");
+      if (!response.ok) throw new Error("Gagal mengambil data perawi");
+      const data = await response.json();
+      
+      const formattedData = data.map((perawi: any) => ({
+        id: perawi.slug,
+        name: perawi.name,
+        available: perawi.total
+      }));
+      
+      res.json({ code: 200, data: formattedData });
     } catch (error: any) {
        res.status(500).json({ status: false, message: error.message });
     }
@@ -245,10 +253,36 @@ async function startServer() {
 
   app.get("/api/ext/hadith/books/:id", async (req, res) => {
     try {
-      const q = new URLSearchParams(req.query as Record<string, string>).toString();
-      const response = await fetch(`https://api.hadith.gading.dev/books/${req.params.id}?${q}`);
-      if (!response.ok) throw new Error("Gagal");
-      res.json(await response.json());
+      const rangeParams = (req.query as Record<string, string>).range as string;
+      let start = 1;
+      let end = 50;
+      if (rangeParams) {
+        const parts = rangeParams.split('-');
+        if (parts.length === 2) {
+          start = parseInt(parts[0], 10) || 1;
+          end = parseInt(parts[1], 10) || 50;
+        }
+      }
+      
+      const { id } = req.params;
+      
+      const limit = end - start + 1;
+      const page = Math.floor((start - 1) / limit) + 1;
+      
+      const response = await fetch(`https://hadis-api-id.vercel.app/hadith/${id}?page=${page}&limit=${limit}`);
+      if (!response.ok) throw new Error("Gagal mengambil data hadits");
+      const data = await response.json();
+      
+      const hadiths = (data.items || []).map((i: any) => ({
+         number: i.number,
+         arab: i.arab,
+         id: i.id
+      }));
+      
+      res.json({
+         code: 200,
+         data: { id, hadiths }
+      });
     } catch (error: any) {
        res.status(500).json({ status: false, message: error.message });
     }

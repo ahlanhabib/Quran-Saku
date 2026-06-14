@@ -45,7 +45,7 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
     const fetchBooks = async () => {
       try {
         const res = await fetch("/api/ext/hadith/books");
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error("Server Hadits Pusat Sedang Gangguan");
         const payload = await res.json();
 
         if (payload.code === 200 && payload.data) {
@@ -69,7 +69,7 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
       const res = await fetch(
         `/api/ext/hadith/books/${book.id}?range=${RANGE}`,
       );
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error("Server Hadits Pusat Sedang Gangguan");
       const payload = await res.json();
 
       if (payload.code === 200 && payload.data && payload.data.hadiths) {
