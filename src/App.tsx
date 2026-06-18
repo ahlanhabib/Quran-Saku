@@ -217,8 +217,21 @@ export default function App() {
     | "khutbah"
     | "shalawat"
     | "tadarus"
-  >("beranda");
-  const [subMenuLevel, setSubMenuLevel] = useState(0);
+  >(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.replace("#", "");
+      if (hash) return hash.split("-menu-")[0] as any;
+    }
+    return "beranda";
+  });
+  const [subMenuLevel, setSubMenuLevel] = useState(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.replace("#", "");
+      const parts = hash.split("-menu-");
+      if (parts[1]) return Number(parts[1]);
+    }
+    return 0;
+  });
 
   // Auto-subscribe to push if permission is already granted
   useEffect(() => {
@@ -400,23 +413,29 @@ export default function App() {
   // Handle Android Physical Back Button for Capacitor (fallback)
   useEffect(() => {
     const handleBackButton = async () => {
-      if (subMenuLevel > 0) {
-        setSubMenuLevel(prev => prev - 1);
-      } else if (activeTab !== "beranda") {
-        setActiveTab("beranda");
-      } else {
-        await CapacitorApp.exitApp();
-      }
+      try {
+        if (subMenuLevel > 0) {
+          setSubMenuLevel(prev => prev - 1);
+        } else if (activeTab !== "beranda") {
+          setActiveTab("beranda");
+        } else {
+          await CapacitorApp.exitApp();
+        }
+      } catch (e) {}
     };
 
-    const backListener = CapacitorApp.addListener(
-      "backButton",
-      handleBackButton,
-    );
+    try {
+      const backListener = CapacitorApp.addListener(
+        "backButton",
+        handleBackButton,
+      );
 
-    return () => {
-      backListener.then((listener) => listener.remove());
-    };
+      return () => {
+        backListener.then((listener) => listener?.remove?.()).catch(() => {});
+      };
+    } catch (e) {
+      // Not running in valid Capacitor context
+    }
   }, [activeTab, subMenuLevel]);
 
   // Notifications/Toasts System
