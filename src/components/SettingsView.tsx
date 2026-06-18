@@ -529,6 +529,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     ? 'Pengingat dan Alarm Jadwal Sholat akan dikirim langsung ke perangkat Anda melalui server agar tepat waktu.' 
                     : 'Aktifkan notifikasi browser agar sistem pengingat otomatis berjalan secara background dengan sinkronisasi ke server.'}
                 </p>
+                {notificationPermission === 'granted' && (
+                  <p className="text-[10px] text-slate-500 mt-2 p-2 bg-white/60 rounded-lg border border-slate-200">
+                    <strong>Catatan Serverless:</strong> Karena aplikasi versi ini mungkin berjalan di environment <i>Serverless</i> yang "tidur" saat tidak ada trafik web aktif, cron background di server bisa terhenti. Agar notifikasi push server stabil saat PWA ditutup, buat layanan cron eksternal (misal <i>cron-job.org</i>) memanggil endpoint <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-600 select-all font-mono">/api/push/trigger-cron</code> setiap menit. (Atau gunakan opsi notifikasi lokal di PWA jika eksperimental flag aktif).
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 {notificationPermission !== 'granted' && (

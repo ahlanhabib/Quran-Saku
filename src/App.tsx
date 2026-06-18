@@ -363,11 +363,6 @@ export default function App() {
                     });
                   } catch(e) {}
                 }
-                
-                try {
-                  const audio = new Audio("/Azan.mp3");
-                  audio.play().catch(() => {});
-                } catch(e) {}
               }
             }
         } catch(e) {}

@@ -116,8 +116,7 @@ async function startServer() {
     res.json({ status: "success" });
   });
 
-  // ---- TRIGGER CRON PUSH NOTIFICATIONS ----
-  cron.schedule("* * * * *", async () => {
+  const runCronJobs = async () => {
     const now = new Date();
     
     for (const [endpoint, data] of Object.entries(subscriptions)) {
@@ -233,6 +232,18 @@ async function startServer() {
             }
           }
        }
+    }
+  };
+
+  // ---- TRIGGER CRON PUSH NOTIFICATIONS ----
+  cron.schedule("* * * * *", runCronJobs);
+
+  app.get("/api/push/trigger-cron", async (req, res) => {
+    try {
+      await runCronJobs();
+      res.json({ status: "success", message: "Cron jobs manually triggered" });
+    } catch (e: any) {
+      res.status(500).json({ status: "error", message: e.message });
     }
   });
   // ----------------------------------------
