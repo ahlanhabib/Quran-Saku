@@ -8,55 +8,35 @@ self.addEventListener('activate', (event) => {
 
 // Listening for push events to trigger notifications
 self.addEventListener('push', (event) => {
-  let title = 'Waktu Sholat Telah Tiba';
+  let title = 'Pemberitahuan Quran Saku';
   let options = {
-    body: 'Mari tunaikan ibadah sholat.',
-    icon: '/quran-icon.png', // Assuming we have an icon, fallback to default
-    badge: '/quran-icon.png',
-    vibrate: [200, 100, 200, 100, 200, 100, 200],
+    body: '',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    vibrate: [200, 100, 200, 100, 200],
     data: {
       dateOfArrival: Date.now(),
-      primaryKey: '2'
-    },
-    actions: [
-      {action: 'explore', title: 'Buka Aplikasi', icon: '/checkmark.png'},
-      {action: 'close', title: 'Tutup', icon: '/xmark.png'},
-    ]
+      url: '/'
+    }
   };
 
   if (event.data) {
-    const pushData = event.data.json();
-    title = pushData.title || title;
-    options.body = pushData.body || options.body;
+    try {
+      const pushData = event.data.json();
+      title = pushData.title || title;
+      options.body = pushData.body || options.body;
+      if (pushData.icon) options.icon = pushData.icon;
+      if (pushData.badge) options.badge = pushData.badge;
+      if (pushData.tag) options.tag = pushData.tag;
+      if (pushData.vibrate) options.vibrate = pushData.vibrate;
+    } catch (e) {
+      console.error('Error handling push event data:', e);
+    }
   }
 
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
-});
-
-// Handle notification click event
-self.addEventListener('push', (event) => {
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      const title = data.title || 'Pemberitahuan Quran Saku';
-      const options = {
-        body: data.body || '',
-        icon: data.icon || '/icons/icon-192x192.png',
-        badge: data.badge || '/icons/icon-192x192.png',
-        vibrate: data.vibrate || [300, 100, 300],
-        tag: data.tag || 'quran-saku-notification',
-        data: { url: '/' }
-      };
-
-      event.waitUntil(
-        self.registration.showNotification(title, options)
-      );
-    } catch (e) {
-      console.error('Error handling push event data:', e);
-    }
-  }
 });
 
 self.addEventListener('notificationclick', (event) => {

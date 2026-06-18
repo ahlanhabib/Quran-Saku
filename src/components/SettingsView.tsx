@@ -66,6 +66,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   >("profil");
   const [editingName, setEditingName] = useState(userName);
   const [editingGeminiKey, setEditingGeminiKey] = useState(geminiApiKey);
+  const [notificationPermission, setNotificationPermission] = useState<string>("default");
+
+  useEffect(() => {
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
 
   const [rutinReminders, setRutinReminders] = useState<{
     [key: string]: { enable: boolean; time: string; name: string; days?: number[] };
@@ -158,10 +165,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     if (enablePush) {
       if ("Notification" in window) {
         if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-          await Notification.requestPermission();
+          const perm = await Notification.requestPermission();
+          setNotificationPermission(perm);
         }
         if (Notification.permission === "granted") {
           await subscribeToPush(rutinReminders);
+          addToast("Tersinkronisasi", "Notifikasi Push telah aktif dan tersinkron.", "success");
         }
       }
     }
@@ -496,6 +505,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <p className="text-[13px] text-slate-500 font-medium mt-1">
                 Atur alarm pengingat harian untuk kegiatan ibadah Anda.
               </p>
+            </div>
+
+            {/* Web Push Status */}
+            <div className={`border p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-center justify-between shadow-sm transition-colors ${
+              notificationPermission === 'granted' ? 'bg-emerald-50/50 border-emerald-200' : 
+              notificationPermission === 'denied' ? 'bg-red-50/50 border-red-200' : 
+              'bg-blue-50/50 border-blue-200'
+            }`}>
+              <div className="flex-1 text-center sm:text-left">
+                <h4 className="text-sm font-bold flex items-center justify-center sm:justify-start gap-2 mb-1">
+                  {notificationPermission === 'granted' ? (
+                    <><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Push Notifikasi Aktif</>
+                  ) : notificationPermission === 'denied' ? (
+                    <><span className="w-2 h-2 rounded-full bg-red-500"></span>Notifikasi Diblokir</>
+                  ) : (
+                    <><span className="w-2 h-2 rounded-full bg-blue-500"></span>Notifikasi Belum Aktif</>
+                  )}
+                </h4>
+                <p className="text-xs text-slate-600 font-medium">
+                  {notificationPermission === 'granted' 
+                    ? 'Pengingat dan Alarm Jadwal Sholat akan dikirim langsung ke perangkat Anda melalui server agar tepat waktu.' 
+                    : 'Aktifkan notifikasi browser agar sistem pengingat otomatis berjalan secara background dengan sinkronisasi ke server.'}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {notificationPermission !== 'granted' && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if ("Notification" in window) {
+                        const perm = await Notification.requestPermission();
+                        setNotificationPermission(perm);
+                        if (perm === 'granted') {
+                          await subscribeToPush(rutinReminders);
+                          addToast("Notifikasi Aktif!", "Izin notifikasi telah diberikan.", "success");
+                        } else if (perm === 'denied') {
+                          addToast("Peringatan", "Akses diblokir. Harap ubah di pengaturan Browser Anda.", "warning");
+                        }
+                      }
+                    }}
+                    className="px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:text-[#0F4C3A] text-xs font-bold rounded-xl shadow-sm transition-colors"
+                  >
+                    Minta Izin Ulang
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (notificationPermission === 'granted') {
+                      await subscribeToPush(rutinReminders);
+                      addToast("Sinkronisasi Selesai", "Data endpoint terbaru telah didaftarkan ke server.", "success");
+                    } else {
+                      addToast("Gagal", "Harap izinkan notifikasi terlebih dahulu.", "warning");
+                    }
+                  }}
+                  className="px-4 py-2 bg-[#0F4C3A] text-[#ECC17A] text-xs font-bold rounded-xl shadow-sm hover:scale-105 active:scale-95 transition-all"
+                >
+                  Sinkron Server (Sync Now)
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-col gap-4 mt-2">
