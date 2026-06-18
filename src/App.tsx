@@ -279,28 +279,27 @@ export default function App() {
           const now = new Date();
           const hr = String(now.getHours()).padStart(2, "0");
           const mn = String(now.getMinutes()).padStart(2, "0");
-          const sec = now.getSeconds();
           const timeStr = `${hr}:${mn}`;
           
-          if (sec === 0 || sec === 1) {
-            const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()} ${timeStr}`;
-            const lastTrigger = localStorage.getItem("qd_rutin_last_triggered");
-            if (lastTrigger !== todayKey) {
-              let matched: any = null;
-              Object.values(rem).forEach((r: any) => {
-                if (r.enable && r.time === timeStr) {
-                  if (r.days && Array.isArray(r.days) && !r.days.includes(now.getDay())) {
-                    return; // Skip if restricted by days
-                  }
-                  matched = r;
+          const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()} ${timeStr}`;
+          const lastTrigger = localStorage.getItem("qd_rutin_last_triggered");
+          
+          if (lastTrigger !== todayKey) {
+            let matched: any = null;
+            Object.values(rem).forEach((r: any) => {
+              if (r.enable && r.time === timeStr) {
+                if (r.days && Array.isArray(r.days) && !r.days.includes(now.getDay())) {
+                  return; // Skip if restricted by days
                 }
-              });
-              
-              if (matched) {
-                localStorage.setItem("qd_rutin_last_triggered", todayKey);
-                addToast(
-                  `Waktunya ${matched.name}!`,
-                  `Saatnya menunaikan kegiatan ibadah rutin Anda: ${matched.name}.`,
+                matched = r;
+              }
+            });
+            
+            if (matched) {
+              localStorage.setItem("qd_rutin_last_triggered", todayKey);
+              addToast(
+                `Waktunya ${matched.name}!`,
+                `Saatnya menunaikan kegiatan ibadah rutin Anda: ${matched.name}.`,
                   "notification"
                 );
                 
@@ -324,7 +323,6 @@ export default function App() {
                 } catch(e) {}
               }
             }
-          }
         } catch(e) {}
       }
     }, 1000);
