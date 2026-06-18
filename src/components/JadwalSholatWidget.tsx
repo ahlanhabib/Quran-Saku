@@ -182,7 +182,8 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
           body: JSON.stringify({
             subscription,
             sholatSchedule: schedule,
-            selectedCity: selectedCity
+            selectedCity: selectedCity,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
           })
         });
       }

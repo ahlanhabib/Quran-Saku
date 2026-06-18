@@ -87,7 +87,7 @@ async function startServer() {
   });
 
   app.post("/api/push/subscribe", (req, res) => {
-    const { subscription, cityId, rutinReminders, sholatSchedule, selectedCity } = req.body;
+    const { subscription, cityId, rutinReminders, sholatSchedule, selectedCity, timezone } = req.body;
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ error: "Invalid subscription" });
     }
@@ -99,6 +99,7 @@ async function startServer() {
       rutinReminders: rutinReminders || subscriptions[subscription.endpoint]?.rutinReminders,
       sholatSchedule: sholatSchedule || subscriptions[subscription.endpoint]?.sholatSchedule,
       selectedCity: selectedCity || subscriptions[subscription.endpoint]?.selectedCity,
+      timezone: timezone || subscriptions[subscription.endpoint]?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       updatedAt: new Date().toISOString()
     };
     saveSubscriptions();
@@ -116,30 +117,37 @@ async function startServer() {
   });
 
   // ---- TRIGGER CRON PUSH NOTIFICATIONS ----
-  cron.schedule("* * * * *", () => {
+  cron.schedule("* * * * *", async () => {
     const now = new Date();
-    // Use Indonesia (Jakarta) time for server scheduling reference
-    // Normally we should check timezone from client, but for simplicity we rely on matched HH:mm 
-    // where user device time string equals current checked time.
-    
-    const hr = String(now.getHours()).padStart(2, "0");
-    const mn = String(now.getMinutes()).padStart(2, "0");
-    const timeStr = `${hr}:${mn}`;
-    const day = now.getDay();
-    
-    // Check for 15 minutes ahead for preparation push
-    const futureDate = new Date(now.getTime() + 15 * 60000);
-    const fhr = String(futureDate.getHours()).padStart(2, "0");
-    const fmn = String(futureDate.getMinutes()).padStart(2, "0");
-    const futureTimeStr = `${fhr}:${fmn}`;
     
     for (const [endpoint, data] of Object.entries(subscriptions)) {
        const sub = data.subscription;
        if (!sub) continue;
        
+       const userTz = data.timezone || "Asia/Jakarta";
+       
+       const formatTime = (d: Date) => {
+           const parts = new Intl.DateTimeFormat("en-GB", { timeZone: userTz, hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(d);
+           let hr = parts.find(p => p.type === 'hour')?.value || '00';
+           if (hr === '24') hr = '00';
+           const mn = parts.find(p => p.type === 'minute')?.value || '00';
+           return `${hr}:${mn}`;
+       };
+       
+       const timeStr = formatTime(now);
+       const futureTimeStr = formatTime(new Date(now.getTime() + 15 * 60000));
+       
+       const dayStr = new Intl.DateTimeFormat("en-US", { timeZone: userTz, weekday: 'short' }).format(now).substring(0,3);
+       const daysMap: Record<string, number> = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+       const day = daysMap[dayStr] ?? now.getDay();
+       
+       const dParts = new Intl.DateTimeFormat("en-US", { timeZone: userTz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+       const targetDateString = `${dParts.find(p => p.type === 'year')?.value}-${dParts.find(p => p.type === 'month')?.value}-${dParts.find(p => p.type === 'day')?.value}`;
+       
        const rutin = data.rutinReminders || {};
-       const jadwal = data.sholatSchedule || {};
+       let jadwalToUse = data.sholatSchedule || {};
        const cityName = data.selectedCity?.lokasi || "wilayah Anda";
+       const userCityId = data.cityId || data.selectedCity?.id;
        
        // Compare rutin times
        for (const key of Object.keys(rutin)) {
@@ -167,16 +175,33 @@ async function startServer() {
        
        // Process Sholat Schedule Push (Adhan & 15 mins Prep)
        // We only process if today matches the schedule 'date'
-       const targetDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+       if (userCityId && jadwalToUse && jadwalToUse.date !== targetDateString) {
+           try {
+               const resolvedId = resolveCityId(userCityId);
+               const res = await fetch(`https://api.myquran.com/v3/sholat/jadwal/${resolvedId}/${targetDateString}`);
+               if (res.ok) {
+                   const v3Data = await res.json();
+                   if (v3Data.status && v3Data.data?.jadwal) {
+                       const singleJadwal = v3Data.data.jadwal[targetDateString];
+                       if (singleJadwal) {
+                           singleJadwal.date = targetDateString;
+                           jadwalToUse = singleJadwal;
+                           subscriptions[endpoint].sholatSchedule = singleJadwal;
+                           saveSubscriptions();
+                       }
+                   }
+               }
+           } catch(e) {}
+       }
        
-       if (jadwal && jadwal.date === targetDateString) {
+       if (jadwalToUse && jadwalToUse.date === targetDateString) {
           const mainPrayers = [
-            { name: "Subuh", time: jadwal.subuh },
-            { name: "Dhuha", time: jadwal.dhuha },
-            { name: "Dzuhur", time: jadwal.dzuhur },
-            { name: "Ashar", time: jadwal.ashar },
-            { name: "Maghrib", time: jadwal.maghrib },
-            { name: "Isya", time: jadwal.isya }
+            { name: "Subuh", time: jadwalToUse.subuh },
+            { name: "Dhuha", time: jadwalToUse.dhuha },
+            { name: "Dzuhur", time: jadwalToUse.dzuhur },
+            { name: "Ashar", time: jadwalToUse.ashar },
+            { name: "Maghrib", time: jadwalToUse.maghrib },
+            { name: "Isya", time: jadwalToUse.isya }
           ];
           
           for (const prayer of mainPrayers) {
@@ -191,6 +216,7 @@ async function startServer() {
                   tag: `sholat-${prayer.name.toLowerCase()}`,
                   isAdhan: true,
                   prayerName: prayer.name,
+                  requireInteraction: true,
                   vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500]
               })).catch(err => console.error(err));
             }

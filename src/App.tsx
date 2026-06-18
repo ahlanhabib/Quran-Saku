@@ -255,7 +255,8 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               subscription,
-              rutinReminders: reminders
+              rutinReminders: reminders,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             })
           });
         } catch (e) {

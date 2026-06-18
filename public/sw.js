@@ -29,6 +29,7 @@ self.addEventListener('push', (event) => {
       if (pushData.badge) options.badge = pushData.badge;
       if (pushData.tag) options.tag = pushData.tag;
       if (pushData.vibrate) options.vibrate = pushData.vibrate;
+      if (pushData.requireInteraction) Object.assign(options, { requireInteraction: true });
       
       if (pushData.isAdhan) {
         // As a fallback for browsers that support it (like Firefox/some Android configurations)
