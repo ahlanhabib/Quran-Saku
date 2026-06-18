@@ -269,6 +269,65 @@ export default function App() {
     precacheSurahs();
   }, []);
 
+  useEffect(() => {
+    // Background watcher for Rutin Reminders
+    const timer = setInterval(() => {
+      const saved = localStorage.getItem("qd_rutinReminders");
+      if (saved) {
+        try {
+          const rem = JSON.parse(saved);
+          const now = new Date();
+          const hr = String(now.getHours()).padStart(2, "0");
+          const mn = String(now.getMinutes()).padStart(2, "0");
+          const sec = now.getSeconds();
+          const timeStr = `${hr}:${mn}`;
+          
+          if (sec === 0 || sec === 1) {
+            const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()} ${timeStr}`;
+            const lastTrigger = localStorage.getItem("qd_rutin_last_triggered");
+            if (lastTrigger !== todayKey) {
+              let matched: any = null;
+              Object.values(rem).forEach((r: any) => {
+                if (r.enable && r.time === timeStr) {
+                  matched = r;
+                }
+              });
+              
+              if (matched) {
+                localStorage.setItem("qd_rutin_last_triggered", todayKey);
+                addToast(
+                  `Waktunya ${matched.name}!`,
+                  `Saatnya menunaikan kegiatan ibadah rutin Anda: ${matched.name}.`,
+                  "notification"
+                );
+                
+                if ("Notification" in window && Notification.permission === "granted") {
+                  try {
+                    navigator.serviceWorker.ready.then((reg) => {
+                      reg.showNotification(`Pengingat: ${matched.name}`, {
+                        body: `Waktunya menunaikan kegiatan ibadah rutin Anda.`,
+                        icon: "/icons/icon-192x192.png",
+                        badge: "/icons/icon-192x192.png",
+                        vibrate: [300, 100, 300, 100, 300],
+                        tag: `rutin-${matched.name}`,
+                      } as any);
+                    });
+                  } catch(e) {}
+                }
+                
+                try {
+                  const audio = new Audio("/Azan.mp3");
+                  audio.play().catch(() => {});
+                } catch(e) {}
+              }
+            }
+          }
+        } catch(e) {}
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Update history state when tabs or submenus change
   useEffect(() => {
     const currentState = window.history.state;

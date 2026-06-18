@@ -55,13 +55,26 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
   // Notifications toggles
   const [notifiedPrayers, setNotifiedPrayers] = useState<{
     [key: string]: boolean;
-  }>({
-    subuh: true,
-    dzuhur: true,
-    ashar: true,
-    maghrib: true,
-    isya: true,
+  }>(() => {
+    try {
+      const saved = localStorage.getItem("qd_notifiedPrayers");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      imsak: false,
+      subuh: true,
+      terbit: false,
+      dhuha: false,
+      dzuhur: true,
+      ashar: true,
+      maghrib: true,
+      isya: true,
+    };
   });
+
+  useEffect(() => {
+    localStorage.setItem("qd_notifiedPrayers", JSON.stringify(notifiedPrayers));
+  }, [notifiedPrayers]);
 
   // Countdown timers
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -675,7 +688,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
                 </span>
 
                 {/* Alarm notification toggle icon button */}
-                {["subuh", "dzuhur", "ashar", "maghrib", "isya"].includes(
+                {["imsak", "subuh", "terbit", "dhuha", "dzuhur", "ashar", "maghrib", "isya"].includes(
                   item.canon,
                 ) ? (
                   <button

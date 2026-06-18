@@ -3,6 +3,7 @@
  * @app Quran Saku
  */
 import { PageContainer } from "./PageContainer";
+import { LoaderLogo } from "./LoaderLogo";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -647,19 +648,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
 
           {/* Verses Loader */}
           {isLoadingDetail ? (
-            <div className="flex flex-col gap-4">
-              {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col gap-6">
-                  <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-                    <div className="w-12 h-6 rounded-xl bg-slate-200 animate-pulse"></div>
-                    <div className="w-32 h-6 rounded-xl bg-slate-100 animate-pulse"></div>
-                  </div>
-                  <div className="h-12 w-full bg-slate-100 rounded-lg animate-pulse mb-4"></div>
-                  <div className="h-4 w-3/4 bg-slate-100 rounded-lg animate-pulse"></div>
-                  <div className="h-4 w-1/2 bg-slate-100 rounded-lg animate-pulse"></div>
-                </div>
-              ))}
-            </div>
+            <LoaderLogo />
           ) : (
             <div className="flex flex-col gap-4">
               {surahDetail?.ayat.map((ayat, index) => {

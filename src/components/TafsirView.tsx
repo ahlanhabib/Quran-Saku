@@ -1,4 +1,5 @@
 import { PageContainer } from "./PageContainer";
+import { LoaderLogo } from "./LoaderLogo";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -195,19 +196,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
 
         <div className="flex-1 overflow-y-auto w-full">
           {isLoading ? (
-            <div className="flex flex-col gap-3">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="w-full bg-white border border-slate-100 p-4 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-3 w-full">
-                    <div className="w-10 h-10 rounded-xl bg-slate-200 animate-pulse shrink-0"></div>
-                    <div className="flex flex-col gap-2 w-1/2">
-                      <div className="h-4 bg-slate-200 rounded animate-pulse w-full"></div>
-                      <div className="h-3 bg-slate-100 rounded animate-pulse w-2/3"></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <LoaderLogo />
           ) : isError ? (
             <div className="bg-red-50 border border-red-100 p-8 rounded-3xl flex flex-col items-center justify-center text-center">
               <AlertTriangle className="w-10 h-10 text-red-400 mb-3" />

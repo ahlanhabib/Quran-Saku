@@ -62,10 +62,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   addToast,
 }) => {
   const [activeMenu, setActiveMenu] = useState<
-    "profil" | "bookmarks" | "notes" | "support" | "about"
+    "profil" | "pengingat" | "bookmarks" | "notes" | "support" | "about"
   >("profil");
   const [editingName, setEditingName] = useState(userName);
   const [editingGeminiKey, setEditingGeminiKey] = useState(geminiApiKey);
+
+  const [rutinReminders, setRutinReminders] = useState<{
+    [key: string]: { enable: boolean; time: string; name: string };
+  }>(() => {
+    try {
+      const saved = localStorage.getItem("qd_rutinReminders");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Ensure new additions are present if using old schema
+        const defaultSchema = {
+          tahajud: { enable: false, time: "03:30", name: "Shalat Tahajud" },
+          terbit: { enable: false, time: "05:50", name: "Syuruq / Terbit" },
+          dhuha: { enable: false, time: "07:00", name: "Shalat Dhuha" },
+          dzikirPagi: { enable: false, time: "06:00", name: "Dzikir Pagi" },
+          dzikirPetang: { enable: false, time: "16:00", name: "Dzikir Petang" },
+          bacaQuran: { enable: false, time: "20:00", name: "Tadarus Al-Qur'an" },
+        };
+        return { ...defaultSchema, ...parsed };
+      }
+    } catch (e) {}
+    return {
+      tahajud: { enable: false, time: "03:30", name: "Shalat Tahajud" },
+      terbit: { enable: false, time: "05:50", name: "Syuruq / Terbit" },
+      dhuha: { enable: false, time: "07:00", name: "Shalat Dhuha" },
+      dzikirPagi: { enable: false, time: "06:00", name: "Dzikir Pagi" },
+      dzikirPetang: { enable: false, time: "16:00", name: "Dzikir Petang" },
+      bacaQuran: { enable: false, time: "20:00", name: "Tadarus Al-Qur'an" },
+    };
+  });
+
+  const saveRutinReminders = () => {
+    localStorage.setItem("qd_rutinReminders", JSON.stringify(rutinReminders));
+    addToast(
+      "Pengingat Disimpan",
+      "Preferensi alarm ibadah rutin telah diperbarui.",
+      "success"
+    );
+    // Request permission if enabled
+    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Object.values(rutinReminders).forEach(r => {
+        if (r.enable) Notification.requestPermission();
+      });
+    }
+  };
 
   const saveProfileSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,6 +215,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               id: "profil",
               label: "Profil & Target Harian",
               icon: <User className="w-5 h-5" strokeWidth={1.5} />,
+            },
+            {
+              id: "pengingat",
+              label: "Pengingat Ibadah Rutin",
+              icon: <Bell className="w-5 h-5" strokeWidth={1.5} />,
             },
             {
               id: "bookmarks",
@@ -379,6 +428,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
             </div>
           </form>
+        )}
+
+        {/* VIEW: PENGINGAT RUTIN */}
+        {activeMenu === "pengingat" && (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h3 className="font-serif font-bold text-[#0F4C3A] text-xl">
+                Pengingat Ibadah Rutin
+              </h3>
+              <p className="text-[13px] text-slate-500 font-medium mt-1">
+                Atur alarm pengingat harian untuk kegiatan ibadah Anda.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-4 mt-2">
+              {Object.keys(rutinReminders).map((key) => {
+                const item = rutinReminders[key];
+                return (
+                  <div
+                    key={key}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-slate-200 bg-slate-50 hover:border-emerald-200 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-xl transition-colors ${item.enable ? "bg-[#0F4C3A] text-[#ECC17A]" : "bg-slate-200 text-slate-500"}`}>
+                        <Bell className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-bold ${item.enable ? "text-slate-800" : "text-slate-500"}`}>
+                          {item.name}
+                        </h4>
+                        <p className="text-xs text-slate-400 mt-0.5 font-medium">Beri tahu saya pada waktu ini setiap hari</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="time"
+                        value={item.time}
+                        onChange={(e) => setRutinReminders(p => ({ ...p, [key]: { ...p[key], time: e.target.value } }))}
+                        className="bg-white border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F4C3A]/20"
+                      />
+                      <button
+                        onClick={() => setRutinReminders(p => ({ ...p, [key]: { ...p[key], enable: !p[key].enable } }))}
+                        className={`relative w-11 h-6 flex items-center rounded-full transition-colors cursor-pointer ${item.enable ? 'bg-[#0F4C3A]' : 'bg-slate-300'}`}
+                      >
+                        <span className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${item.enable ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-4 mt-2">
+              <p className="text-[11px] text-slate-400 font-medium">
+                Notifikasi menggunakan alarm browser. Pastikan browser tidak dalam mode tidur.
+              </p>
+              <button
+                onClick={saveRutinReminders}
+                className="px-6 py-3 bg-[#0F4C3A] hover:bg-emerald-900 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-900/20"
+              >
+                Simpan Alarm
+              </button>
+            </div>
+          </div>
         )}
 
         {/* VIEW 2: BOOKMARK DIRECTORY LIST */}
