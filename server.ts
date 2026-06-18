@@ -188,7 +188,10 @@ async function startServer() {
                   title: `Waktu Sholat ${prayer.name}`,
                   body: `Telah masuk waktu sholat ${prayer.name} untuk wilayah ${cityName}.`,
                   icon: "/icons/icon-192x192.png",
-                  tag: `sholat-${prayer.name.toLowerCase()}`
+                  tag: `sholat-${prayer.name.toLowerCase()}`,
+                  isAdhan: true,
+                  prayerName: prayer.name,
+                  vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500]
               })).catch(err => console.error(err));
             }
             

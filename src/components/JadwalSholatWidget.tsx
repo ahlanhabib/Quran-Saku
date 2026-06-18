@@ -359,6 +359,20 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
     }
   };
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const messageListener = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'PLAY_ADHAN') {
+          playAdhanTone(event.data.prayerName);
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', messageListener);
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', messageListener);
+      };
+    }
+  }, []);
+
   // Searching cities
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
