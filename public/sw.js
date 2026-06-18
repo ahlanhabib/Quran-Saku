@@ -85,5 +85,64 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       self.registration.showNotification(event.data.title, event.data.options)
     );
+  } else if (event.data && event.data.type === 'SCHEDULE_LOCAL_NOTIFICATIONS') {
+    // Attempt to schedule using Notification Triggers API if supported
+    if ('showTrigger' in Notification.prototype) {
+      event.waitUntil(
+        (async () => {
+          try {
+            const { schedule, cityName, notifiedPrayers, offsetMs } = event.data;
+            const now = new Date();
+            
+            const prayerTimes = [
+              { name: "Subuh", time: schedule.subuh },
+              { name: "Dzuhur", time: schedule.dzuhur },
+              { name: "Ashar", time: schedule.ashar },
+              { name: "Maghrib", time: schedule.maghrib },
+              { name: "Isya", time: schedule.isya },
+            ];
+
+            // Re-schedule for today
+            for (const p of prayerTimes) {
+              const canon = p.name.toLowerCase();
+              if (!notifiedPrayers[canon]) continue;
+              
+              if (!p.time) continue;
+              const [hr, mn] = p.time.split(':').map(Number);
+              const targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hr, mn, 0);
+              const timeMs = targetTime.getTime() + (offsetMs || 0);
+              
+              // Only schedule future
+              if (timeMs > now.getTime()) {
+                await self.registration.showNotification(`Waktu Sholat ${p.name}`, {
+                  body: `Telah masuk waktu sholat ${p.name} untuk wilayah ${cityName}.`,
+                  icon: '/icons/icon-192x192.png',
+                  badge: '/icons/icon-192x192.png',
+                  vibrate: [500, 200, 500, 200, 500],
+                  tag: `local-sholat-${canon}`,
+                  // @ts-ignore - experimental API
+                  showTrigger: new TimestampTrigger(timeMs)
+                });
+              }
+            }
+          } catch(e) { console.error('Schedule Error:', e); }
+        })()
+      );
+    }
+  }
+});
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'sync-prayer-times') {
+    // In a full implementation, we would read city from IndexedDB,
+    // fetch new schedule API, and dispatch showTrigger for the new day
+    console.log("Running periodic sync for prayer times...");
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clientList) => {
+        for (const client of clientList) {
+          client.postMessage({ type: 'PERIODIC_SYNC_TRIGGERED' });
+        }
+      })
+    );
   }
 });

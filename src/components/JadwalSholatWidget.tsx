@@ -161,6 +161,32 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
 
   const syncScheduleToPush = async () => {
     if (!schedule || !selectedCity) return;
+
+    // Send to service worker for local Notification Triggers (showTrigger)
+    if ('serviceWorker' in navigator && Notification.permission === "granted") {
+      navigator.serviceWorker.ready.then(async (registration) => {
+        // Register periodic background sync for local updating if supported
+        try {
+          if ('periodicSync' in registration) {
+            const status = await navigator.permissions.query({ name: 'periodic-background-sync' as any });
+            if (status.state === 'granted') {
+              // @ts-ignore
+              await registration.periodicSync.register('sync-prayer-times', {
+                minInterval: 12 * 60 * 60 * 1000 // 12 hours
+              });
+            }
+          }
+        } catch(e) {}
+
+        registration.active?.postMessage({
+          type: 'SCHEDULE_LOCAL_NOTIFICATIONS',
+          schedule,
+          cityName: selectedCity.lokasi,
+          notifiedPrayers
+        });
+      });
+    }
+
     try {
       if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission === "granted") {
         const registration = await navigator.serviceWorker.ready;
@@ -194,7 +220,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
 
   useEffect(() => {
     syncScheduleToPush();
-  }, [schedule, selectedCity]);
+  }, [schedule, selectedCity, notifiedPrayers]);
 
   // Handle live clock & next sholat countdown calculation
   useEffect(() => {
@@ -365,6 +391,12 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
       const messageListener = (event: MessageEvent) => {
         if (event.data && event.data.type === 'PLAY_ADHAN') {
           playAdhanTone(event.data.prayerName);
+        } else if (event.data && event.data.type === 'PERIODIC_SYNC_TRIGGERED') {
+          if (selectedCity && selectedCity.id !== 'COORD') {
+             fetchSchedule(selectedCity.id);
+          } else {
+             getGPSLocation(true);
+          }
         }
       };
       navigator.serviceWorker.addEventListener('message', messageListener);
@@ -372,7 +404,7 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
         navigator.serviceWorker.removeEventListener('message', messageListener);
       };
     }
-  }, []);
+  }, [selectedCity]);
 
   // Searching cities
   const handleSearch = async (e: React.FormEvent) => {
