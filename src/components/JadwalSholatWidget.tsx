@@ -225,75 +225,72 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
 
     setNextSholat(targetSholat);
 
-    // Dynamic notification trigger on precise target sholat
-    // Check if remaining says "00:00:01"
-    if (
-      targetSholat && (
-      targetSholat.remaining === "00:00:01" ||
-      targetSholat.remaining === "00:00:00"
-      )
-    ) {
+    if (targetSholat) {
       const canonicalName = targetSholat.name.toLowerCase();
-      if (notifiedPrayers[canonicalName]) {
-        // Trigger in-app toast
-        addToast(
-          `⏱️ Waktu Sholat Tiba!`,
-          `Saatnya menunaikan ibadah Sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}. Mari bersiap menghadap-Nya.`,
-          "notification",
-        );
-
-        // Trigger Native OS push notification via service worker
-        if (
-          "Notification" in window &&
-          Notification.permission === "granted" &&
-          "serviceWorker" in navigator
-        ) {
-          navigator.serviceWorker.ready.then((registration) => {
-            registration.showNotification(`Waktu Sholat ${targetSholat.name}`, {
-              body: `Telah masuk waktu sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}.`,
-              icon: "/icons/icon-192x192.png",
-              badge: "/icons/icon-192x192.png",
-              vibrate: [300, 100, 300, 100, 300],
-              tag: `sholat-${targetSholat.name.toLowerCase()}`,
-            } as any);
-          });
+      const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${canonicalName}`;
+      
+      const timeParts = targetSholat.time.split(":");
+      if (timeParts.length >= 2) {
+        let [shours, sminutes] = timeParts.map(Number);
+        if (targetSholat.name.includes("Esok Hari")) {
+          shours += 24;
         }
+        const targetTotalSecs = shours * 3600 + sminutes * 60;
+        const diff = targetTotalSecs - currentTotalSecs;
+        
+        // Sholat Adhan (window of 1 minute)
+        if (diff <= 60 && diff >= -60) {
+          const adhanKey = `adhan-${todayKey}`;
+          if (notifiedPrayers[canonicalName] && localStorage.getItem("qd_last_adhan") !== adhanKey) {
+            localStorage.setItem("qd_last_adhan", adhanKey);
+            addToast(
+              `⏱️ Waktu Sholat Tiba!`,
+              `Saatnya menunaikan ibadah Sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}. Mari bersiap menghadap-Nya.`,
+              "notification",
+            );
 
-        // Play adhan tone
-        playAdhanTone(targetSholat.name);
-      }
-    }
+            if ("Notification" in window && Notification.permission === "granted" && "serviceWorker" in navigator) {
+              navigator.serviceWorker.ready.then((registration) => {
+                registration.showNotification(`Waktu Sholat ${targetSholat.name}`, {
+                  body: `Telah masuk waktu sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}.`,
+                  icon: "/icons/icon-192x192.png",
+                  badge: "/icons/icon-192x192.png",
+                  vibrate: [300, 100, 300, 100, 300],
+                  tag: `sholat-${canonicalName}`,
+                } as any);
+              });
+            }
+            playAdhanTone(targetSholat.name);
+          }
+        }
+        
+        // 15-minute reminder
+        if (diff <= 15 * 60 && diff >= 14 * 60) {
+          const prepKey = `prep-${todayKey}`;
+          if (
+            notifiedPrayers[canonicalName] && 
+            ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'].includes(canonicalName.replace(' (esok hari)', '')) &&
+            localStorage.getItem("qd_last_prep") !== prepKey
+          ) {
+            localStorage.setItem("qd_last_prep", prepKey);
+            addToast(
+              `🕌 15 Menit Menuju ${targetSholat.name}`,
+              `Segera bersiap, ambil wudhu, dan hentikan aktivitas. Waktu ${targetSholat.name} akan masuk sebentar lagi di wilayah ${selectedCity.lokasi}.`,
+              "notification",
+            );
     
-    // 15-minute prior reminder notification
-    if (
-      targetSholat && (
-      targetSholat.remaining === "00:15:01" ||
-      targetSholat.remaining === "00:15:00"
-      )
-    ) {
-      const canonicalName = targetSholat.name.toLowerCase();
-      // We exclude Imsak and Terbit so it mainly reminds for obligatory prayers
-      if (notifiedPrayers[canonicalName] && ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'].includes(canonicalName)) {
-        addToast(
-          `🕌 15 Menit Menuju ${targetSholat.name}`,
-          `Segera bersiap, ambil wudhu, dan hentikan aktivitas. Waktu ${targetSholat.name} akan masuk sebentar lagi di wilayah ${selectedCity.lokasi}.`,
-          "notification",
-        );
-
-        if (
-          "Notification" in window &&
-          Notification.permission === "granted" &&
-          "serviceWorker" in navigator
-        ) {
-          navigator.serviceWorker.ready.then((registration) => {
-            registration.showNotification(`Bersiap Sholat ${targetSholat.name}`, {
-              body: `15 menit lagi masuk waktu sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}.`,
-              icon: "/icons/icon-192x192.png",
-              badge: "/icons/icon-192x192.png",
-              vibrate: [200, 100, 200],
-              tag: `prep-sholat-${targetSholat.name.toLowerCase()}`,
-            } as any);
-          });
+            if ("Notification" in window && Notification.permission === "granted" && "serviceWorker" in navigator) {
+              navigator.serviceWorker.ready.then((registration) => {
+                registration.showNotification(`Bersiap Sholat ${targetSholat.name}`, {
+                  body: `15 menit lagi masuk waktu sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}.`,
+                  icon: "/icons/icon-192x192.png",
+                  badge: "/icons/icon-192x192.png",
+                  vibrate: [200, 100, 200],
+                  tag: `prep-sholat-${canonicalName}`,
+                } as any);
+              });
+            }
+          }
         }
       }
     }
