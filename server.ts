@@ -2,6 +2,9 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import webpush from "web-push";
+import cron from "node-cron";
+import fs from "fs";
 
 // Initialize Gemini API client lazily
 let aiClient: GoogleGenAI | null = null;
@@ -40,11 +43,170 @@ function resolveCityId(id: string): string {
   return id;
 }
 
+// ---- WEB PUSH SETUP ----
+let vapidKeys: { publicKey: string; privateKey: string };
+try {
+  if (fs.existsSync("vapid.json")) {
+    vapidKeys = JSON.parse(fs.readFileSync("vapid.json", "utf8"));
+  } else {
+    vapidKeys = webpush.generateVAPIDKeys();
+    fs.writeFileSync("vapid.json", JSON.stringify(vapidKeys));
+  }
+} catch (e) {
+  vapidKeys = webpush.generateVAPIDKeys();
+}
+
+webpush.setVapidDetails(
+  "mailto:ahlanhabibana@gmail.com",
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
+
+// In-Memory Subscription Storage (Persisted to disk)
+let subscriptions: Record<string, any> = {};
+try {
+  if (fs.existsSync("subscriptions.json")) {
+    subscriptions = JSON.parse(fs.readFileSync("subscriptions.json", "utf8"));
+  }
+} catch (e) {}
+
+function saveSubscriptions() {
+  fs.writeFileSync("subscriptions.json", JSON.stringify(subscriptions, null, 2));
+}
+// ------------------------
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   app.use(express.json());
+
+  // ---- WEB PUSH ENDPOINTS ----
+  app.get("/api/push/public-key", (req, res) => {
+    res.json({ publicKey: vapidKeys.publicKey });
+  });
+
+  app.post("/api/push/subscribe", (req, res) => {
+    const { subscription, cityId, rutinReminders, sholatSchedule, selectedCity } = req.body;
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "Invalid subscription" });
+    }
+    
+    subscriptions[subscription.endpoint] = { 
+      ...subscriptions[subscription.endpoint],
+      subscription, 
+      cityId: cityId || subscriptions[subscription.endpoint]?.cityId, 
+      rutinReminders: rutinReminders || subscriptions[subscription.endpoint]?.rutinReminders,
+      sholatSchedule: sholatSchedule || subscriptions[subscription.endpoint]?.sholatSchedule,
+      selectedCity: selectedCity || subscriptions[subscription.endpoint]?.selectedCity,
+      updatedAt: new Date().toISOString()
+    };
+    saveSubscriptions();
+    
+    res.status(201).json({ status: "success" });
+  });
+
+  app.post("/api/push/unsubscribe", (req, res) => {
+    const { endpoint } = req.body;
+    if (endpoint && subscriptions[endpoint]) {
+      delete subscriptions[endpoint];
+      saveSubscriptions();
+    }
+    res.json({ status: "success" });
+  });
+
+  // ---- TRIGGER CRON PUSH NOTIFICATIONS ----
+  cron.schedule("* * * * *", () => {
+    const now = new Date();
+    // Use Indonesia (Jakarta) time for server scheduling reference
+    // Normally we should check timezone from client, but for simplicity we rely on matched HH:mm 
+    // where user device time string equals current checked time.
+    
+    const hr = String(now.getHours()).padStart(2, "0");
+    const mn = String(now.getMinutes()).padStart(2, "0");
+    const timeStr = `${hr}:${mn}`;
+    const day = now.getDay();
+    
+    // Check for 15 minutes ahead for preparation push
+    const futureDate = new Date(now.getTime() + 15 * 60000);
+    const fhr = String(futureDate.getHours()).padStart(2, "0");
+    const fmn = String(futureDate.getMinutes()).padStart(2, "0");
+    const futureTimeStr = `${fhr}:${fmn}`;
+    
+    for (const [endpoint, data] of Object.entries(subscriptions)) {
+       const sub = data.subscription;
+       if (!sub) continue;
+       
+       const rutin = data.rutinReminders || {};
+       const jadwal = data.sholatSchedule || {};
+       const cityName = data.selectedCity?.lokasi || "wilayah Anda";
+       
+       // Compare rutin times
+       for (const key of Object.keys(rutin)) {
+          const reminder = rutin[key];
+          if (reminder.enable && reminder.time === timeStr) {
+             if (reminder.days && Array.isArray(reminder.days) && !reminder.days.includes(day)) {
+               continue;
+             }
+             
+             webpush.sendNotification(sub, JSON.stringify({
+                title: `Waktunya ${reminder.name}!`,
+                body: `Saatnya menunaikan kegiatan ibadah rutin Anda: ${reminder.name}.`,
+                icon: "/icons/icon-192x192.png",
+                tag: `rutin-${key}`
+             })).catch(err => {
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                   delete subscriptions[endpoint];
+                   saveSubscriptions();
+                } else {
+                   console.error("Push Error (Rutin):", err);
+                }
+             });
+          }
+       }
+       
+       // Process Sholat Schedule Push (Adhan & 15 mins Prep)
+       // We only process if today matches the schedule 'date'
+       const targetDateString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+       
+       if (jadwal && jadwal.date === targetDateString) {
+          const mainPrayers = [
+            { name: "Subuh", time: jadwal.subuh },
+            { name: "Dhuha", time: jadwal.dhuha },
+            { name: "Dzuhur", time: jadwal.dzuhur },
+            { name: "Ashar", time: jadwal.ashar },
+            { name: "Maghrib", time: jadwal.maghrib },
+            { name: "Isya", time: jadwal.isya }
+          ];
+          
+          for (const prayer of mainPrayers) {
+            if (!prayer.time) continue;
+            
+            // 1. Sholat time
+            if (prayer.time === timeStr) {
+              webpush.sendNotification(sub, JSON.stringify({
+                  title: `Waktu Sholat ${prayer.name}`,
+                  body: `Telah masuk waktu sholat ${prayer.name} untuk wilayah ${cityName}.`,
+                  icon: "/icons/icon-192x192.png",
+                  tag: `sholat-${prayer.name.toLowerCase()}`
+              })).catch(err => console.error(err));
+            }
+            
+            // 2. Preparation (15 mins prior)
+            // Skip prep for Dhuha
+            if (prayer.time === futureTimeStr && prayer.name !== "Dhuha") {
+              webpush.sendNotification(sub, JSON.stringify({
+                  title: `🕌 15 Menit Menuju ${prayer.name}`,
+                  body: `Segera bersiap, ambil wudhu. Waktu ${prayer.name} akan masuk sebentar lagi di wilayah ${cityName}.`,
+                  icon: "/icons/icon-192x192.png",
+                  tag: `prep-sholat-${prayer.name.toLowerCase()}`
+              })).catch(err => console.error(err));
+            }
+          }
+       }
+    }
+  });
+  // ----------------------------------------
 
   // API Route - Get all Sholat Cities (MyQuran v3)
   app.get("/api/sholat/kota/semua", async (req, res) => {

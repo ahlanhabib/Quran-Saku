@@ -36,6 +36,29 @@ self.addEventListener('push', (event) => {
 });
 
 // Handle notification click event
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      const title = data.title || 'Pemberitahuan Quran Saku';
+      const options = {
+        body: data.body || '',
+        icon: data.icon || '/icons/icon-192x192.png',
+        badge: data.badge || '/icons/icon-192x192.png',
+        vibrate: data.vibrate || [300, 100, 300],
+        tag: data.tag || 'quran-saku-notification',
+        data: { url: '/' }
+      };
+
+      event.waitUntil(
+        self.registration.showNotification(title, options)
+      );
+    } catch (e) {
+      console.error('Error handling push event data:', e);
+    }
+  }
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (event.action === 'explore' || !event.action) {

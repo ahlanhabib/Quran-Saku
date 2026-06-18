@@ -98,7 +98,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
   });
 
-  const saveRutinReminders = () => {
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const subscribeToPush = async (reminders: any) => {
+    try {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        const registration = await navigator.serviceWorker.ready;
+        let subscription = await registration.pushManager.getSubscription();
+        
+        const response = await fetch('/api/push/public-key');
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(data.publicKey)
+          });
+        }
+        
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription,
+            rutinReminders: reminders
+          })
+        });
+      }
+    } catch (error) {
+      console.error('Push Subscription Error:', error);
+    }
+  };
+
+  const saveRutinReminders = async () => {
     localStorage.setItem("qd_rutinReminders", JSON.stringify(rutinReminders));
     addToast(
       "Pengingat Disimpan",
@@ -106,10 +150,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       "success"
     );
     // Request permission if enabled
-    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
-      Object.values(rutinReminders).forEach(r => {
-        if (r.enable) Notification.requestPermission();
-      });
+    let enablePush = false;
+    Object.values(rutinReminders).forEach(r => {
+      if (r.enable) enablePush = true;
+    });
+
+    if (enablePush) {
+      if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+          await Notification.requestPermission();
+        }
+        if (Notification.permission === "granted") {
+          await subscribeToPush(rutinReminders);
+        }
+      }
     }
   };
 
