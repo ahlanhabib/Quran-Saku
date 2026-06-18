@@ -275,6 +275,40 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
         playAdhanTone(targetSholat.name);
       }
     }
+    
+    // 15-minute prior reminder notification
+    if (
+      targetSholat && (
+      targetSholat.remaining === "00:15:01" ||
+      targetSholat.remaining === "00:15:00"
+      )
+    ) {
+      const canonicalName = targetSholat.name.toLowerCase();
+      // We exclude Imsak and Terbit so it mainly reminds for obligatory prayers
+      if (notifiedPrayers[canonicalName] && ['subuh', 'dzuhur', 'ashar', 'maghrib', 'isya'].includes(canonicalName)) {
+        addToast(
+          `🕌 15 Menit Menuju ${targetSholat.name}`,
+          `Segera bersiap, ambil wudhu, dan hentikan aktivitas. Waktu ${targetSholat.name} akan masuk sebentar lagi di wilayah ${selectedCity.lokasi}.`,
+          "notification",
+        );
+
+        if (
+          "Notification" in window &&
+          Notification.permission === "granted" &&
+          "serviceWorker" in navigator
+        ) {
+          navigator.serviceWorker.ready.then((registration) => {
+            registration.showNotification(`Bersiap Sholat ${targetSholat.name}`, {
+              body: `15 menit lagi masuk waktu sholat ${targetSholat.name} untuk wilayah ${selectedCity.lokasi}.`,
+              icon: "/icons/icon-192x192.png",
+              badge: "/icons/icon-192x192.png",
+              vibrate: [200, 100, 200],
+              tag: `prep-sholat-${targetSholat.name.toLowerCase()}`,
+            } as any);
+          });
+        }
+      }
+    }
   }, [currentTime, schedule, notifiedPrayers, selectedCity]);
 
   // Play audio file for adhan notification
@@ -590,11 +624,14 @@ export const JadwalSholatWidget: React.FC<SholatWidgetProps> = ({
 
       {/* Grid of prayer schedule items */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-400 select-none">
-          <Clock className="w-10 h-10 animate-spin text-emerald-800" />
-          <p className="text-sm font-medium">
-            Memuat jadwal waktu sholat kota...
-          </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col items-center gap-2">
+              <div className="w-12 h-4 bg-slate-200 rounded animate-pulse"></div>
+              <div className="w-16 h-6 bg-slate-300 rounded animate-pulse my-1"></div>
+              <div className="w-6 h-6 bg-slate-200 rounded-full animate-pulse"></div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">

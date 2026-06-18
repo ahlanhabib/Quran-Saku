@@ -1,3 +1,4 @@
+import { PageContainer } from "./PageContainer";
 /**
  * @author Habib Ismail Al Qadri
  * @app Quran Saku
@@ -246,7 +247,7 @@ export const DoaHarianView: React.FC<DoaHarianViewProps> = ({ addToast }) => {
   const isAligned = Math.abs(activeCompassHeading - targetKiblatAngle) <= 6;
 
   return (
-    <div className="flex flex-col gap-5">
+    <PageContainer className="gap-5">
       {/* Tab Selectors Segment */}
       <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto scrollbar-none">
         {[
@@ -971,6 +972,6 @@ export const DoaHarianView: React.FC<DoaHarianViewProps> = ({ addToast }) => {
           </AnimatePresence>,
           document.body,
         )}
-    </div>
+    </PageContainer>
   );
 };

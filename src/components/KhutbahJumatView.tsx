@@ -1,3 +1,4 @@
+import { PageContainer } from "./PageContainer";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, BookOpen, User, Quote, CheckCircle2, Sparkles, Loader2, X, History } from "lucide-react";
@@ -133,7 +134,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
   const activeKhutbah = khutbahData.find(k => k.id === selectedId);
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-32 sm:pb-36">
+    <PageContainer>
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button
@@ -408,6 +409,6 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
           </motion.div>
         </div>, document.body
       )}
-    </div>
+    </PageContainer>
   );
 };

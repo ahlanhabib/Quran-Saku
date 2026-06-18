@@ -1,3 +1,4 @@
+import { PageContainer } from "./PageContainer";
 import React, { useState } from "react";
 import { ArrowLeft, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -71,7 +72,7 @@ export const DzikirPagiPetangView: React.FC<DzikirPagiPetangViewProps> = ({ onBa
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#FDFBF7] text-slate-800 pb-8">
+    <PageContainer>
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         <button
           onClick={onBack}
@@ -144,6 +145,6 @@ export const DzikirPagiPetangView: React.FC<DzikirPagiPetangViewProps> = ({ onBa
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 };

@@ -2,6 +2,7 @@
  * @author Habib Ismail Al Qadri
  * @app Quran Saku
  */
+import { PageContainer } from "./PageContainer";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -25,6 +26,8 @@ import {
   HelpCircle,
   FileText,
   WifiOff,
+  Maximize2,
+  XCircle
 } from "lucide-react";
 import {
   Surah,
@@ -90,6 +93,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   // Audio players
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [isPlayingFull, setIsPlayingFull] = useState(false);
   const [fullAudioUrl, setFullAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -487,7 +491,7 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <PageContainer className="gap-6">
       {/* Offline Indicator */}
       {isOffline && (
         <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 rounded-2xl flex items-center gap-3 text-sm font-semibold shadow-sm animate-in fade-in slide-in-from-top-4">
@@ -574,13 +578,22 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
         /* Detailed Mushaf Surah Reader */
         <div className="flex flex-col gap-5">
           {/* Back button button */}
-          <button
-            onClick={() => setSelectedSurah(null)}
-            className="self-start px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Kembali ke Daftar Surah
-          </button>
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSelectedSurah(null)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Kembali ke Daftar Surah
+            </button>
+            <button
+              onClick={() => setIsFocusMode(true)}
+              className="px-4 py-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Maximize2 className="w-4 h-4" />
+              Focus Mode
+            </button>
+          </div>
 
           {/* Detailed Surah Header Card banner */}
           <div className="bg-gradient-to-r from-emerald-950 via-[#0F4C3A] to-teal-900 rounded-3xl p-6 text-white text-center shadow-lg relative overflow-hidden">
@@ -634,11 +647,18 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
 
           {/* Verses Loader */}
           {isLoadingDetail ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-              <Clock className="w-10 h-10 animate-spin text-[#0F4C3A]" />
-              <p className="text-sm font-semibold">
-                Mengunduh ayat suci Al-Qur'an...
-              </p>
+            <div className="flex flex-col gap-4">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col gap-6">
+                  <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                    <div className="w-12 h-6 rounded-xl bg-slate-200 animate-pulse"></div>
+                    <div className="w-32 h-6 rounded-xl bg-slate-100 animate-pulse"></div>
+                  </div>
+                  <div className="h-12 w-full bg-slate-100 rounded-lg animate-pulse mb-4"></div>
+                  <div className="h-4 w-3/4 bg-slate-100 rounded-lg animate-pulse"></div>
+                  <div className="h-4 w-1/2 bg-slate-100 rounded-lg animate-pulse"></div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -904,6 +924,49 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
           </AnimatePresence>,
           document.body,
         )}
-    </div>
+      {/* Focus Mode Overlay */}
+      {isFocusMode && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-[#FDFBF7] z-[9999] flex flex-col overflow-y-auto w-full pb-[env(safe-area-inset-bottom,20px)] h-[100dvh]">
+          <div className="sticky top-0 bg-[#FDFBF7]/95 backdrop-blur-md border-b border-slate-200 p-4 flex items-center justify-between z-10">
+            <div className="flex flex-col">
+              <span className="font-serif font-bold text-lg text-[#0F4C3A]">{selectedSurah?.namaLatin}</span>
+              <span className="text-xs text-slate-500 font-medium">{selectedSurah?.arti}</span>
+            </div>
+            <button 
+              onClick={() => setIsFocusMode(false)}
+              className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold text-sm flex items-center gap-2 cursor-pointer"
+            >
+              <XCircle className="w-4 h-4" /> Keluar
+            </button>
+          </div>
+          <div className="p-4 sm:p-8 flex flex-col gap-10 max-w-4xl mx-auto w-full">
+            {selectedSurah && selectedSurah.nomor !== 1 && selectedSurah.nomor !== 9 && (
+              <div className="text-center select-none pt-4">
+                <span className="font-serif text-3xl sm:text-4xl font-bold text-slate-800 tracking-wider leading-loose">
+                  بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+                </span>
+                <p className="text-slate-400 text-sm mt-3 font-semibold">Dengan nama Allah Yang Maha Pengasih lagi Maha Penyayang.</p>
+              </div>
+            )}
+            {surahDetail?.ayat.map(ayat => (
+              <div key={ayat.nomorAyat} className="flex flex-col gap-6 py-4 border-b border-slate-100/60 last:border-0">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 text-[#0F4C3A] flex items-center justify-center font-bold text-xs shrink-0 mt-2">
+                    {ayat.nomorAyat}
+                  </div>
+                  <p className="font-serif text-3xl sm:text-5xl text-right leading-[2.5] sm:leading-[2.5] text-[#0F4C3A] w-full break-words tracking-normal" dir="rtl">
+                    {ayat.teksArab}
+                  </p>
+                </div>
+                <div className="pl-12 flex flex-col gap-2">
+                  <p className="text-slate-500 text-sm sm:text-base italic leading-relaxed">{ayat.teksLatin}</p>
+                  <p className="text-slate-800 text-base sm:text-lg font-medium leading-relaxed">{ayat.teksIndonesia}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>, document.body
+      )}
+    </PageContainer>
   );
 };

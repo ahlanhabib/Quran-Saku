@@ -1,3 +1,4 @@
+import { PageContainer } from "./PageContainer";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -91,7 +92,7 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-32 sm:pb-36">
+    <PageContainer>
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         <button
           onClick={() => {
@@ -144,8 +145,16 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
               </div>
 
               {isLoadingBooks ? (
-                <div className="flex justify-center p-12 text-emerald-600/50">
-                  <RefreshCw className="w-6 h-6 animate-spin" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="bg-white border border-slate-200/60 p-4 rounded-[24px] flex items-center gap-4">
+                      <div className="w-12 h-12 bg-slate-200 rounded-xl animate-pulse"></div>
+                      <div className="flex flex-col gap-2 w-1/2">
+                        <div className="h-4 bg-slate-200 rounded animate-pulse w-full"></div>
+                        <div className="h-3 bg-slate-100 rounded animate-pulse w-2/3"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : books.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -188,11 +197,27 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
               className="flex flex-col gap-4"
             >
               {isLoadingHadiths ? (
-                <div className="flex flex-col items-center justify-center py-32 text-[#0F4C3A]">
-                  <RefreshCw className="w-8 h-8 animate-spin opacity-50" />
-                  <span className="text-[10px] font-bold mt-5 uppercase tracking-widest opacity-80 text-emerald-800 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-100">
-                    Menyusun Hadits...
-                  </span>
+                <div className="flex flex-col gap-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-white border border-slate-200/60 rounded-[28px] p-6 shadow-sm overflow-hidden w-full">
+                      <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-slate-200 animate-pulse"></div>
+                          <div className="w-24 h-3 rounded bg-slate-100 animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-3 mb-8">
+                        <div className="w-full h-8 bg-slate-100 rounded animate-pulse"></div>
+                        <div className="w-3/4 h-8 bg-slate-100 rounded animate-pulse"></div>
+                        <div className="w-1/2 h-8 bg-slate-100 rounded animate-pulse"></div>
+                      </div>
+                      <div className="bg-[#FDFBF7] border border-slate-100 rounded-2xl p-4 flex flex-col gap-2">
+                        <div className="w-full h-4 bg-slate-200 rounded animate-pulse"></div>
+                        <div className="w-4/5 h-4 bg-slate-200 rounded animate-pulse"></div>
+                        <div className="w-3/5 h-4 bg-slate-200 rounded animate-pulse"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : hadiths.length > 0 ? (
                 <div className="flex flex-col gap-4">
@@ -243,6 +268,6 @@ export const HaditsView: React.FC<HaditsViewProps> = ({ onBack, addToast }) => {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </PageContainer>
   );
 };

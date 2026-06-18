@@ -66,6 +66,7 @@ import { KalkulatorWarisView } from "./components/KalkulatorWarisView";
 import { RadioIslamView } from "./components/RadioIslamView";
 import { KhutbahJumatView } from "./components/KhutbahJumatView";
 import { KumpulanShalawatView } from "./components/KumpulanShalawatView";
+import { TadarusView } from "./components/TadarusView";
 
 // Typings and Data
 import { Bookmark, Note, TilawahProgress } from "./types";
@@ -215,6 +216,7 @@ export default function App() {
     | "radio"
     | "khutbah"
     | "shalawat"
+    | "tadarus"
   >("beranda");
   const [subMenuLevel, setSubMenuLevel] = useState(0);
 
@@ -688,6 +690,7 @@ export default function App() {
                         ],
                         3: [
                           { tag: "Kembali", action: () => setSubMenuLevel(2), bg: "bg-[#F5F5F5] text-slate-500", icon: <ArrowLeft className="w-5.5 h-5.5" /> },
+                          { tag: "Tadarus", action: () => setActiveTab("tadarus"), bg: "bg-[#F3EEF8] text-purple-700", icon: <BookOpen className="w-5.5 h-5.5" /> },
                           { tag: "Shalawat", action: () => setActiveTab("shalawat"), bg: "bg-[#FFFCE8] text-pink-600", icon: <Quote className="w-5.5 h-5.5" /> },
                           { tag: "Tanya Ustadz", action: () => setActiveTab("ustadz"), bg: "bg-[#EEF6FA] text-teal-700", icon: <MessageCircle className="w-5.5 h-5.5" /> },
                         ]
@@ -1008,6 +1011,8 @@ export default function App() {
         return <KhutbahJumatView onBack={() => setActiveTab("beranda")} />;
       case "shalawat":
         return <KumpulanShalawatView onBack={() => setActiveTab("beranda")} addToast={addToast} />;
+      case "tadarus":
+        return <TadarusView onBack={() => setActiveTab("beranda")} addToast={addToast} />;
 
       case "profil":
         return (
@@ -1040,7 +1045,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#FDFBF7] text-slate-800 font-sans pb-28 flex flex-col justify-between overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#FDFBF7] text-slate-800 font-sans pb-[120px] md:pb-[140px] flex flex-col justify-between overflow-x-hidden">
       {/* Toast container notification tray */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
