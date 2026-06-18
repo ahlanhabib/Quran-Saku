@@ -797,12 +797,12 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
         createPortal(
           <AnimatePresence>
             {activeNoteForm && (
-              <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
+              <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 pb-[env(safe-area-inset-bottom,20px)] sm:p-6 z-[90]">
                 <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  className="bg-white rounded-3xl w-full max-w-md p-6 overflow-hidden shadow-2xl flex flex-col gap-4"
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  className="bg-white rounded-3xl w-full max-w-md p-6 overflow-hidden shadow-2xl flex flex-col gap-4 max-h-[85dvh] mb-4 sm:mb-0"
                 >
                   <div>
                     <h3 className="text-lg font-serif font-bold text-[#0F4C3A]">
@@ -858,12 +858,12 @@ export const QuranReader: React.FC<QuranReaderProps> = ({
         createPortal(
           <AnimatePresence>
             {activeTafsirAyat && (
-              <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
+              <div className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 pb-[env(safe-area-inset-bottom,20px)] sm:p-6 z-[90]">
                 <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85dvh] mb-4 sm:mb-0"
                 >
                   {/* Header */}
                   <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">

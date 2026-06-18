@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, BookOpen, User, Quote, CheckCircle2, Sparkles, Loader2, X, History } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -91,10 +92,12 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
       // Need API Key context for generator if managed globally, but here we read from localEnv if available, or just send empty so server uses its own fallback or client passes it..
       const apiKey = localStorage.getItem("GEMINI_API_KEY") || "";
       
-      const payload: any = { tema: aiTema, judul: aiJudul, apiKey };
+      let tanyaUstadzContextStr = "";
       if (aiContextMessages && aiContextMessages.length > 0) {
-        payload.tanyaUstadzContext = aiContextMessages.map(m => `${m.sender === 'user' ? 'Penanya' : 'Tanya Ustadz AI'}: ${m.text}`).join('\n\n');
+        tanyaUstadzContextStr = aiContextMessages.map(m => `${m.sender === 'user' ? 'Penanya' : 'Tanya Ustadz AI'}: ${m.text}`).join('\n\n');
       }
+
+      const payload: any = { tema: aiTema, judul: aiJudul, apiKey, tanyaUstadzContext: tanyaUstadzContextStr };
 
       const response = await fetch("/api/generate-khutbah", {
         method: "POST",
@@ -114,6 +117,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
         throw new Error(data.error || "Gagal membuat khutbah");
       }
 
+
       setKhutbahData([data, ...khutbahData]);
       setShowAiModal(false);
       setSelectedId(data.id);
@@ -129,7 +133,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
   const activeKhutbah = khutbahData.find(k => k.id === selectedId);
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-32 sm:pb-36">
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button
@@ -315,10 +319,10 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
         </AnimatePresence>
       </div>
 
-      {showAiModal && (
-        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-[90] flex items-center justify-center p-4 sm:p-6">
-          <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white rounded-3xl w-full max-w-md flex flex-col shadow-2xl relative max-h-[90dvh] overflow-hidden">
-            <div className="p-6 border-b border-slate-100 shrink-0">
+      {showAiModal && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-4 pb-[env(safe-area-inset-bottom,20px)] sm:p-6" style={{ height: "100dvh" }}>
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white rounded-3xl w-full max-w-md flex flex-col shadow-2xl relative max-h-[85dvh] overflow-hidden mb-4 sm:mb-0">
+            <div className="p-4 sm:p-6 border-b border-slate-100 shrink-0">
               <button onClick={() => !isGenerating && setShowAiModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full" disabled={isGenerating}>
                 <X className="w-5 h-5" />
               </button>
@@ -402,7 +406,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
               </button>
             </div>
           </motion.div>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

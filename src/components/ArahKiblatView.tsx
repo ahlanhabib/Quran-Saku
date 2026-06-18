@@ -132,7 +132,7 @@ export const ArahKiblatView: React.FC<ArahKiblatViewProps> = ({
   const isAligned = Math.abs(activeCompassHeading - targetKiblatAngle) <= 6;
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-32 sm:pb-36">
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button

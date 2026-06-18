@@ -148,7 +148,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-5xl mx-auto w-full pb-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start max-w-5xl mx-auto w-full pb-32 sm:pb-36">
       {/* SIDEBAR NAVIGATION (4 cols) */}
       <div className="lg:col-span-4 flex flex-col gap-3 bg-white border border-slate-200/60 p-5 rounded-[32px] shadow-sm">
         <div className="p-4 text-center pb-6 border-b border-slate-100 flex flex-col items-center select-none relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/30">

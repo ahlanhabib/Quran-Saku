@@ -61,7 +61,7 @@ export const CariView: React.FC<CariViewProps> = ({
   }, [globalQuery]);
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-32 sm:pb-36">
       <div className="p-5 flex flex-col gap-5">
         
         <div className="bg-gradient-to-br from-[#0F4C3A] to-emerald-900 border border-emerald-800 p-6 rounded-[28px] relative overflow-hidden shadow-md">

@@ -894,12 +894,12 @@ export const DoaHarianView: React.FC<DoaHarianViewProps> = ({ addToast }) => {
         createPortal(
           <AnimatePresence>
             {selectedAsma && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[90]">
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4 pb-[env(safe-area-inset-bottom,20px)] sm:p-6 z-[90]">
                 <motion.div
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.95, opacity: 0 }}
-                  className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col p-6 relative"
+                  initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                  className="bg-white rounded-3xl w-full max-w-md max-h-[85dvh] overflow-hidden shadow-2xl flex flex-col p-6 relative mb-4 sm:mb-0"
                 >
                   {/* Close Button */}
                   <button

@@ -338,7 +338,7 @@ PENTING:
 - Kembalikan HANYA JSON. Jangan gunakan markdown block (\`\`\`json).`;
 
       const response = await client.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-1.5-flash",
         contents: promptText,
         config: {
           responseMimeType: "application/json",

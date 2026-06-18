@@ -1179,15 +1179,15 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 md:p-8"
+            className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 pb-[env(safe-area-inset-bottom,20px)] sm:p-6"
             onClick={() => setPdfPreviewUrl(null)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden"
+              className="bg-white rounded-2xl shadow-xl w-full max-w-3xl h-[85dvh] flex flex-col overflow-hidden mb-4 sm:mb-0"
             >
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="font-bold text-slate-700">Pratinjau PDF</h3>
