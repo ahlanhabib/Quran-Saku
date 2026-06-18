@@ -43,43 +43,58 @@ function resolveCityId(id: string): string {
   return id;
 }
 
-// ---- WEB PUSH SETUP ----
-let vapidKeys: { publicKey: string; privateKey: string };
-try {
-  if (fs.existsSync("vapid.json")) {
-    vapidKeys = JSON.parse(fs.readFileSync("vapid.json", "utf8"));
-  } else {
-    vapidKeys = webpush.generateVAPIDKeys();
-    fs.writeFileSync("vapid.json", JSON.stringify(vapidKeys));
-  }
-} catch (e) {
-  vapidKeys = webpush.generateVAPIDKeys();
-}
+let vapidKeys: { publicKey: string; privateKey: string } | null = null;
+let db: any = null;
 
-webpush.setVapidDetails(
-  "mailto:ahlanhabibana@gmail.com",
-  vapidKeys.publicKey,
-  vapidKeys.privateKey
-);
+async function setupSystem() {
+  try {
+    if (fs.existsSync("firebase-applet-config.json")) {
+      const config = JSON.parse(fs.readFileSync("firebase-applet-config.json", "utf8"));
+      const app = initializeApp(config);
+      db = getFirestore(app, config.firestoreDatabaseId);
+      console.log("Firebase initialized for server subscriptions");
+      
+      const vDoc = await getDoc(doc(db, "systemConfig", "vapidKeys"));
+      if (vDoc.exists()) {
+        vapidKeys = vDoc.data() as { publicKey: string; privateKey: string };
+        console.log("Loaded VAPID keys from Firestore");
+      } else {
+        vapidKeys = webpush.generateVAPIDKeys();
+        await setDoc(doc(db, "systemConfig", "vapidKeys"), vapidKeys);
+        console.log("Generated and saved new VAPID keys to Firestore");
+      }
+    }
+  } catch (e) {
+    console.error("Firebase init error:", e);
+  }
+
+  // Fallback if no firebase
+  if (!vapidKeys) {
+    try {
+      if (fs.existsSync("vapid.json")) {
+        vapidKeys = JSON.parse(fs.readFileSync("vapid.json", "utf8"));
+      } else {
+        vapidKeys = webpush.generateVAPIDKeys();
+        fs.writeFileSync("vapid.json", JSON.stringify(vapidKeys));
+      }
+    } catch(e) {
+      vapidKeys = webpush.generateVAPIDKeys();
+    }
+  }
+
+  webpush.setVapidDetails(
+    "mailto:ahlanhabibana@gmail.com",
+    vapidKeys!.publicKey,
+    vapidKeys!.privateKey
+  );
+}
 
 // ============================================
 // FIREBASE FIRESTORE FOR SUBSCRIPTIONS
 // ============================================
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc } from "firebase/firestore";
 import fs from "fs";
-
-let db: any = null;
-try {
-  if (fs.existsSync("firebase-applet-config.json")) {
-    const config = JSON.parse(fs.readFileSync("firebase-applet-config.json", "utf8"));
-    const app = initializeApp(config);
-    db = getFirestore(app, config.firestoreDatabaseId);
-    console.log("Firebase initialized for server subscriptions");
-  }
-} catch (e) {
-  console.error("Firebase init error:", e);
-}
 
 // In-Memory map just as a fallback or cache
 let subscriptions: Record<string, any> = {};
@@ -127,6 +142,7 @@ async function removeSubscription(endpoint: string) {
 // ------------------------
 
 async function startServer() {
+  await setupSystem();
   const app = express();
   const PORT = 3000;
 

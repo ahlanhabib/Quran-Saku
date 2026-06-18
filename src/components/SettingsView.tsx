@@ -127,11 +127,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         const response = await fetch('/api/push/public-key');
         if (!response.ok) return;
         const data = await response.json();
+        const serverPublicKey = urlBase64ToUint8Array(data.publicKey);
         
+        if (subscription) {
+           const currentKey = subscription.options.applicationServerKey;
+           let keyChanged = false;
+           if (currentKey) {
+             const currentKeyArray = new Uint8Array(currentKey);
+             if (currentKeyArray.length !== serverPublicKey.length) {
+               keyChanged = true;
+             } else {
+               for (let i = 0; i < currentKeyArray.length; i++) {
+                 if (currentKeyArray[i] !== serverPublicKey[i]) {
+                   keyChanged = true;
+                   break;
+                 }
+               }
+             }
+           } else {
+             keyChanged = true;
+           }
+           
+           if (keyChanged) {
+              await subscription.unsubscribe();
+              subscription = null;
+           }
+        }
+
         if (!subscription) {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(data.publicKey)
+            applicationServerKey: serverPublicKey
           });
         }
         
