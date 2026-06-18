@@ -9,7 +9,7 @@ interface Props {
 
 export const KumpulanShalawatView: React.FC<Props> = ({ onBack, addToast }) => {
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-20">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button
@@ -25,7 +25,7 @@ export const KumpulanShalawatView: React.FC<Props> = ({ onBack, addToast }) => {
         </div>
       </div>
 
-      <div className="flex flex-col px-4 py-8 space-y-4 pb-20">
+      <div className="flex flex-col px-4 py-8 space-y-4 pb-6">
          {SHALAWAT_DATA.map(shalawat => (
            <div key={shalawat.id} className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
              <div className="flex justify-between items-start mb-4">

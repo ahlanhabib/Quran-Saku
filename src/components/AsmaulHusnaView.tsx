@@ -33,7 +33,7 @@ export const AsmaulHusnaView: React.FC<Props> = ({ onBack, addToast }) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-20">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button
@@ -66,7 +66,7 @@ export const AsmaulHusnaView: React.FC<Props> = ({ onBack, addToast }) => {
            </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 pb-20">
+        <div className="grid grid-cols-2 gap-4 pb-6">
           {asmaulHusnaData.map((item) => (
              <div 
                key={item.id} 

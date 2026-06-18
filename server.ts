@@ -291,7 +291,7 @@ async function startServer() {
   // API Route - Generate Khutbah
   app.post("/api/generate-khutbah", async (req, res) => {
     try {
-      const { tema, judul, apiKey } = req.body;
+      const { tema, judul, apiKey, tanyaUstadzContext } = req.body;
       let client = getGeminiClient();
       
       if (apiKey && apiKey.trim() !== "") {
@@ -309,6 +309,7 @@ async function startServer() {
       const promptText = `
 Anda adalah seorang ulama tingkat tinggi dan penulis naskah Khutbah Jumat profesional di Indonesia.
 Tugas Anda: Buatkan naskah Khutbah Jumat yang lengkap, mendalam, dan terstruktur sesuai sunnah dengan tema: "${tema}" ${judul ? `(Judul: ${judul})` : ''}.
+${tanyaUstadzContext ? `\nRiwayat percakapan jamaah sebelumnya mengenai topik ini:\n"${tanyaUstadzContext}"\nSilakan jadikan riwayat pertanyaan dan jawaban tersebut sebagai landasan cerita atau bahasan utama dalam isi khutbah Anda.\n` : ""}
 Pastikan panjangnya cukup untuk khutbah nyata (sekitar 10-15 menit dibaca). Gunakan bahasa Indonesia yang baku, menyentuh hati, namun tegas.
 
 Struktur Output JSON yang HARUS dikembalikan persis seperti ini:

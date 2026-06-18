@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, BookOpen, User, Quote, CheckCircle2, Sparkles, Loader2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, User, Quote, CheckCircle2, Sparkles, Loader2, X, History } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface KhutbahBlock {
@@ -24,6 +24,13 @@ interface Khutbah {
   penutup: string;
 }
 
+interface ChatSession {
+  id: string;
+  title: string;
+  updatedAt: string | Date;
+  messages: any[];
+}
+
 interface Props {
   onBack: () => void;
 }
@@ -37,8 +44,12 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiTema, setAiTema] = useState("");
   const [aiJudul, setAiJudul] = useState("");
+  const [aiContextMessages, setAiContextMessages] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiError, setAiError] = useState("");
+  
+  // History from Tanya Ustadz
+  const [tanyaUstadzHistory, setTanyaUstadzHistory] = useState<ChatSession[]>([]);
 
   useEffect(() => {
     const fetchKhutbah = async () => {
@@ -57,6 +68,20 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
     fetchKhutbah();
   }, []);
 
+  useEffect(() => {
+    if (showAiModal) {
+      try {
+        const saved = localStorage.getItem("tanyaUstadzSessions");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setTanyaUstadzHistory(parsed.slice(0, 5)); // Get up to 5 recent sessions
+        }
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+  }, [showAiModal]);
+
   const handleGenerateAI = async () => {
     if (!aiTema.trim()) return;
     setIsGenerating(true);
@@ -66,10 +91,15 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
       // Need API Key context for generator if managed globally, but here we read from localEnv if available, or just send empty so server uses its own fallback or client passes it..
       const apiKey = localStorage.getItem("GEMINI_API_KEY") || "";
       
+      const payload: any = { tema: aiTema, judul: aiJudul, apiKey };
+      if (aiContextMessages && aiContextMessages.length > 0) {
+        payload.tanyaUstadzContext = aiContextMessages.map(m => `${m.sender === 'user' ? 'Penanya' : 'Tanya Ustadz AI'}: ${m.text}`).join('\n\n');
+      }
+
       const response = await fetch("/api/generate-khutbah", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tema: aiTema, judul: aiJudul, apiKey })
+        body: JSON.stringify(payload)
       });
 
       let data;
@@ -99,7 +129,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
   const activeKhutbah = khutbahData.find(k => k.id === selectedId);
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-20">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button
@@ -122,7 +152,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="flex flex-col px-4 py-8 pb-20">
+      <div className="flex flex-col px-4 py-8 pb-6">
         <AnimatePresence mode="wait">
           {loading ? (
             <motion.div key="loading" className="flex items-center justify-center p-10">
@@ -286,19 +316,20 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
       </div>
 
       {showAiModal && (
-        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-[90] flex items-center justify-center p-4">
-          <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white rounded-3xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl relative">
-            <button onClick={() => !isGenerating && setShowAiModal(false)} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full" disabled={isGenerating}>
-              <X className="w-5 h-5" />
-            </button>
-            <div className="p-6">
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-[90] flex items-center justify-center p-4 sm:p-6">
+          <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white rounded-3xl w-full max-w-md flex flex-col shadow-2xl relative max-h-[90dvh] overflow-hidden">
+            <div className="p-6 border-b border-slate-100 shrink-0">
+              <button onClick={() => !isGenerating && setShowAiModal(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full" disabled={isGenerating}>
+                <X className="w-5 h-5" />
+              </button>
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-4 text-emerald-600">
                 <Sparkles className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-xl text-slate-800 mb-1">Buat Khutbah AI</h3>
-              <p className="text-sm text-slate-500 mb-6">Masukkan tema spesifik untuk naskah khutbah baru. AI akan merakitkan khutbah lengkap dengan dalil Quran dan Hadis.</p>
-              
-              <div className="space-y-4">
+              <p className="text-sm text-slate-500 pr-8">Masukkan tema spesifik untuk naskah khutbah baru. AI akan merakitkan khutbah lengkap dengan dalil Quran dan Hadis.</p>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tema Pokok (Wajib)</label>
                   <input 
@@ -309,6 +340,30 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
                     placeholder="misal: Sabar Menghadapi Ujian Pasca Lebaran"
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-50"
                   />
+                  {tanyaUstadzHistory.length > 0 && !isGenerating && (
+                    <div className="mt-3">
+                      <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 mb-2">
+                        <History className="w-3.5 h-3.5" /> DARI RIWAYAT TANYA USTADZ AI
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {tanyaUstadzHistory.map(session => {
+                          const isSelected = aiTema === session.title;
+                          return (
+                          <button
+                            key={session.id}
+                            onClick={() => {
+                              setAiTema(session.title);
+                              setAiContextMessages(session.messages || []);
+                            }}
+                            disabled={isGenerating}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors text-left max-w-full truncate border ${isSelected ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'}`}
+                          >
+                            {session.title}
+                          </button>
+                        )})}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Judul Khusus (Opsional)</label>
@@ -323,27 +378,28 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
                 </div>
 
                 {aiError && (
-                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100">
+                  <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 shrink-0 mt-2">
                     {aiError}
                   </div>
                 )}
+            </div>
 
-                <button 
-                  onClick={handleGenerateAI}
-                  disabled={isGenerating || !aiTema.trim()}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" /> Sedang Menulis Khutbah...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" /> Generate Khutbah
-                    </>
-                  )}
-                </button>
-              </div>
+            <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50/50">
+              <button 
+                onClick={handleGenerateAI}
+                disabled={isGenerating || !aiTema.trim()}
+                className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Sedang Menulis Khutbah...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" /> Generate Khutbah
+                  </>
+                )}
+              </button>
             </div>
           </motion.div>
         </div>

@@ -106,7 +106,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
 
   if (selectedSurahData) {
     return (
-      <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-20">
+      <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
         <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
           <button
             onClick={() => setSelectedSurahData(null)}
@@ -124,7 +124,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
           </div>
         </div>
 
-        <div className="p-6 prose prose-slate prose-sm max-w-none pb-24 prose-p:leading-relaxed prose-p:text-slate-700">
+        <div className="p-6 prose prose-slate prose-sm max-w-none pb-8 prose-p:leading-relaxed prose-p:text-slate-700">
           {selectedSurahData.tafsir.split("\n\n---\n\n").map((block, idx) => {
             const parts = block.split("**Ayat ");
             if (parts.length < 2) return null;
@@ -158,7 +158,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-20">
+    <div className="flex flex-col h-full bg-[#FDFBF7] relative max-w-2xl mx-auto w-full pb-6">
       <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
         {onBack && (
           <button
@@ -192,7 +192,7 @@ export const TafsirView: React.FC<TafsirViewProps> = ({ onBack, addToast }) => {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto w-full pb-32">
+        <div className="flex-1 overflow-y-auto w-full pb-6">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 text-emerald-600">
               <RefreshCw className="w-8 h-8 animate-spin opacity-50" />
