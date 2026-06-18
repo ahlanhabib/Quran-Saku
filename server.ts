@@ -62,16 +62,67 @@ webpush.setVapidDetails(
   vapidKeys.privateKey
 );
 
-// In-Memory Subscription Storage (Persisted to disk)
-let subscriptions: Record<string, any> = {};
-try {
-  if (fs.existsSync("subscriptions.json")) {
-    subscriptions = JSON.parse(fs.readFileSync("subscriptions.json", "utf8"));
-  }
-} catch (e) {}
+// ============================================
+// FIREBASE FIRESTORE FOR SUBSCRIPTIONS
+// ============================================
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "firebase/firestore";
+import fs from "fs";
 
-function saveSubscriptions() {
-  fs.writeFileSync("subscriptions.json", JSON.stringify(subscriptions, null, 2));
+let db: any = null;
+try {
+  if (fs.existsSync("firebase-applet-config.json")) {
+    const config = JSON.parse(fs.readFileSync("firebase-applet-config.json", "utf8"));
+    const app = initializeApp(config);
+    db = getFirestore(app, config.firestoreDatabaseId);
+    console.log("Firebase initialized for server subscriptions");
+  }
+} catch (e) {
+  console.error("Firebase init error:", e);
+}
+
+// In-Memory map just as a fallback or cache
+let subscriptions: Record<string, any> = {};
+
+// We will fetch subscriptions dynamically from Firestore when running the cron.
+async function getAllSubscriptions() {
+  if (!db) return subscriptions; // fallback
+  try {
+    const snap = await getDocs(collection(db, "pushSubscriptions"));
+    const subs: Record<string, any> = {};
+    snap.forEach(d => {
+      subs[d.id] = d.data();
+    });
+    return subs;
+  } catch (e) {
+    console.error("Error fetching subscriptions:", e);
+    return subscriptions; // fallback
+  }
+}
+
+async function saveSubscription(endpoint: string, data: any) {
+  subscriptions[endpoint] = data; // update local instantly
+  if (db) {
+    try {
+      // Use a hashed endpoint or just an encoded url as ID
+      const safeId = Buffer.from(endpoint).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      await setDoc(doc(db, "pushSubscriptions", safeId), data);
+    } catch (e) {
+      console.error("Error saving subscription:", e);
+    }
+  }
+}
+
+async function removeSubscription(endpoint: string) {
+  delete subscriptions[endpoint];
+  if (db) {
+    try {
+      const safeId = Buffer.from(endpoint).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      await deleteDoc(doc(db, "pushSubscriptions", safeId));
+    } catch (e) {
+      console.error("Error removing subscription:", e);
+    }
+  }
 }
 // ------------------------
 
@@ -86,40 +137,45 @@ async function startServer() {
     res.json({ publicKey: vapidKeys.publicKey });
   });
 
-  app.post("/api/push/subscribe", (req, res) => {
+  app.post("/api/push/subscribe", async (req, res) => {
     const { subscription, cityId, rutinReminders, sholatSchedule, selectedCity, timezone } = req.body;
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ error: "Invalid subscription" });
     }
     
-    subscriptions[subscription.endpoint] = { 
-      ...subscriptions[subscription.endpoint],
+    // Fetch all current subscriptions to get existing data for merge
+    const currentSubs = await getAllSubscriptions();
+    const existing = currentSubs[subscription.endpoint] || {};
+
+    const newData = { 
+      ...existing,
       subscription, 
-      cityId: cityId || subscriptions[subscription.endpoint]?.cityId, 
-      rutinReminders: rutinReminders || subscriptions[subscription.endpoint]?.rutinReminders,
-      sholatSchedule: sholatSchedule || subscriptions[subscription.endpoint]?.sholatSchedule,
-      selectedCity: selectedCity || subscriptions[subscription.endpoint]?.selectedCity,
-      timezone: timezone || subscriptions[subscription.endpoint]?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      cityId: cityId || existing.cityId, 
+      rutinReminders: rutinReminders || existing.rutinReminders,
+      sholatSchedule: sholatSchedule || existing.sholatSchedule,
+      selectedCity: selectedCity || existing.selectedCity,
+      timezone: timezone || existing.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       updatedAt: new Date().toISOString()
     };
-    saveSubscriptions();
+    
+    await saveSubscription(subscription.endpoint, newData);
     
     res.status(201).json({ status: "success" });
   });
 
-  app.post("/api/push/unsubscribe", (req, res) => {
+  app.post("/api/push/unsubscribe", async (req, res) => {
     const { endpoint } = req.body;
-    if (endpoint && subscriptions[endpoint]) {
-      delete subscriptions[endpoint];
-      saveSubscriptions();
+    if (endpoint) {
+      await removeSubscription(endpoint);
     }
     res.json({ status: "success" });
   });
 
   const runCronJobs = async () => {
     const now = new Date();
+    const currentSubscriptions = await getAllSubscriptions();
     
-    for (const [endpoint, data] of Object.entries(subscriptions)) {
+    for (const [endpoint, data] of Object.entries(currentSubscriptions)) {
        const sub = data.subscription;
        if (!sub) continue;
        
@@ -161,10 +217,9 @@ async function startServer() {
                 body: `Saatnya menunaikan kegiatan ibadah rutin Anda: ${reminder.name}.`,
                 icon: "/icons/icon-192x192.png",
                 tag: `rutin-${key}`
-             })).catch(err => {
+             })).catch(async err => {
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                   delete subscriptions[endpoint];
-                   saveSubscriptions();
+                   await removeSubscription(endpoint);
                 } else {
                    console.error("Push Error (Rutin):", err);
                 }
@@ -185,8 +240,8 @@ async function startServer() {
                        if (singleJadwal) {
                            singleJadwal.date = targetDateString;
                            jadwalToUse = singleJadwal;
-                           subscriptions[endpoint].sholatSchedule = singleJadwal;
-                           saveSubscriptions();
+                           data.sholatSchedule = singleJadwal;
+                           await saveSubscription(endpoint, data);
                        }
                    }
                }

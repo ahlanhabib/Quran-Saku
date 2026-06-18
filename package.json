@@ -22,6 +22,8 @@
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "firebase": "^12.15.0",
+    "firebase-admin": "^14.0.0",
     "html-to-image": "^1.11.13",
     "idb-keyval": "^6.2.5",
     "jspdf": "^4.2.1",

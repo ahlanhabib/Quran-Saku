@@ -1,0 +1,19 @@
+{
+  "entities": {
+    "Subscription": {
+      "title": "Subscription",
+      "description": "User push subscription",
+      "type": "object",
+      "properties": {
+        "endpoint": { "type": "string" },
+        "keys": { "type": "object" }
+      }
+    }
+  },
+  "firestore": {
+    "pushSubscriptions": {
+      "schema": "Subscription",
+      "description": "List of subscriptions"
+    }
+  }
+}
