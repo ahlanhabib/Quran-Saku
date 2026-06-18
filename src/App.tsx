@@ -289,6 +289,9 @@ export default function App() {
               let matched: any = null;
               Object.values(rem).forEach((r: any) => {
                 if (r.enable && r.time === timeStr) {
+                  if (r.days && Array.isArray(r.days) && !r.days.includes(now.getDay())) {
+                    return; // Skip if restricted by days
+                  }
                   matched = r;
                 }
               });

@@ -68,15 +68,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [editingGeminiKey, setEditingGeminiKey] = useState(geminiApiKey);
 
   const [rutinReminders, setRutinReminders] = useState<{
-    [key: string]: { enable: boolean; time: string; name: string };
+    [key: string]: { enable: boolean; time: string; name: string; days?: number[] };
   }>(() => {
     try {
       const saved = localStorage.getItem("qd_rutinReminders");
       if (saved) {
         const parsed = JSON.parse(saved);
         // Ensure new additions are present if using old schema
-        const defaultSchema = {
+        const defaultSchema: any = {
           tahajud: { enable: false, time: "03:30", name: "Shalat Tahajud" },
+          puasaSeninKamis: { enable: false, time: "03:30", name: "Sahur Puasa Senin-Kamis", days: [1, 4] },
           terbit: { enable: false, time: "05:50", name: "Syuruq / Terbit" },
           dhuha: { enable: false, time: "07:00", name: "Shalat Dhuha" },
           dzikirPagi: { enable: false, time: "06:00", name: "Dzikir Pagi" },
@@ -88,6 +89,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     } catch (e) {}
     return {
       tahajud: { enable: false, time: "03:30", name: "Shalat Tahajud" },
+      puasaSeninKamis: { enable: false, time: "03:30", name: "Sahur Puasa Senin-Kamis", days: [1, 4] },
       terbit: { enable: false, time: "05:50", name: "Syuruq / Terbit" },
       dhuha: { enable: false, time: "07:00", name: "Shalat Dhuha" },
       dzikirPagi: { enable: false, time: "06:00", name: "Dzikir Pagi" },
