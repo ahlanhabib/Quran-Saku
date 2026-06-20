@@ -141,6 +141,14 @@ export const STATIC_DOA: DoaItem[] = [
     terjemah: "Ya Tuhanku, lapangkanlah dadaku, mudahkanlah urusanku, dan lepaskanlah kekakuan lidahku agar mereka mengerti perkataanku.",
     sumber: "QS. Taha: 25-28",
     kategori: "Penting"
+  },
+  {
+    judul: "Doa Nabi SAW (Menyatukan Hati dan Memohon Keselamatan)",
+    arab: "اللَّهُمَّ أَلِّفْ بَيْنَ قُلُوبِنَا وَأَصْلِحْ ذَاتَ بَيْنِنَا وَاهْدِنَا سُبُلَ السَّلَامِ وَنَجِّنَا مِنَ الظُّلُمَاتِ إِلَى النُّورِ وَجَنِّبْنَا الْفَوَاحِشَ مَا ظَهَرَ مِنْهَا وَمَا بَطَنَ وَبَارِكْ لَنَا فِي أَسْمَاعِنَا وَأَبْصَارِنَا وَقُلُوبِنَا وَأَزْوَاجِنَا وَذُرِّيَّاتِنَا وَتُبْ عَلَيْنَا إِنَّكَ أَنْتَ التَّوَّابُ الرَّحِيمُ وَاجْعَلْنَا شَاكِرِينَ لِنِعْمَتِكَ مُثْنِينَ بِهَا عَلَيْكَ، قَابِلِينَ لَهَا وَأَتِمَّهَا عَلَيْنَا",
+    latin: "Allahumma allif baina qulubina, wa ash-lih dzata bainina, wahdina subulas-salam, wa najjina minaz-zulumati ilan-nur, wa jannibnal fawahisya ma zahara minha wama batan, wa barik lana fi asma'ina wa absarina, wa qulubina wa azwajina wa dzurriyyatina, wa tub 'alaina innaka antat-tawwabur-rahim, waj'alna syakirina lini'matika muthnina biha 'alaika qabilina laha, wa atimmaha 'alaina.",
+    terjemah: "Ya Allah, satukanlah hati-hati kami, perbaikilah keadaan di antara kami, tunjukilah kami jalan-jalan keselamatan, selamatkanlah kami dari kegelapan menuju cahaya, jauhkanlah kami dari perbuatan keji yang tampak maupun yang tersembunyi. Berkahilah pendengaran, penglihatan, hati, pasangan-pasangan, dan keturunan kami. Terimalah taubat kami, sesungguhnya Engkau Maha Penerima Taubat lagi Maha Penyayang. Jadikanlah kami orang-orang yang bersyukur atas nikmat-Mu, yang memuji-Mu dengan nikmat tersebut dan menerimanya, serta sempurnakanlah nikmat tersebut atas kami.",
+    sumber: "HR. Abu Dawud no. 969, Al-Hakim",
+    kategori: "Keluarga"
   }
 ];
 
