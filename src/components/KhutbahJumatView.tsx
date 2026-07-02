@@ -1,7 +1,7 @@
 import { PageContainer } from "./PageContainer";
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, BookOpen, User, Quote, CheckCircle2, Sparkles, Loader2, X, History } from "lucide-react";
+import { ArrowLeft, BookOpen, User, Quote, CheckCircle2, Sparkles, Loader2, X, History, Printer } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface KhutbahBlock {
@@ -135,26 +135,38 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
 
   return (
     <PageContainer>
-      <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center gap-4">
-        {onBack && (
+      <div className="sticky top-0 bg-[#FDFBF7]/90 backdrop-blur-xl border-b border-slate-200/60 z-20 px-5 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {onBack && (
+            <button
+              onClick={() => {
+                if (selectedId) setSelectedId(null);
+                else onBack();
+              }}
+              className="p-2 bg-white border border-slate-200 hover:bg-slate-50 hover:scale-105 rounded-full cursor-pointer transition-all shadow-sm shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5 text-[#0F4C3A]" />
+            </button>
+          )}
+          <div>
+            <h3 className="font-bold text-[#0F4C3A] text-lg leading-tight">
+               Khutbah Jumat
+            </h3>
+            <p className="text-[11px] font-bold text-emerald-700/70 uppercase tracking-widest mt-0.5">
+               {selectedId ? "Detail Materi" : "Koleksi Materi Mimbar"}
+            </p>
+          </div>
+        </div>
+
+        {selectedId && (
           <button
-            onClick={() => {
-              if (selectedId) setSelectedId(null);
-              else onBack();
-            }}
-            className="p-2 bg-white border border-slate-200 hover:bg-slate-50 hover:scale-105 rounded-full cursor-pointer transition-all shadow-sm"
+            onClick={() => window.print()}
+            className="p-2 bg-white border border-slate-200 hover:bg-slate-50 hover:scale-105 rounded-full cursor-pointer transition-all shadow-sm shrink-0 text-emerald-600"
+            title="Cetak / Simpan PDF"
           >
-            <ArrowLeft className="w-5 h-5 text-[#0F4C3A]" />
+            <Printer className="w-5 h-5" />
           </button>
         )}
-        <div>
-          <h3 className="font-bold text-[#0F4C3A] text-lg leading-tight">
-             Khutbah Jumat
-          </h3>
-          <p className="text-[11px] font-bold text-emerald-700/70 uppercase tracking-widest mt-0.5">
-             {selectedId ? "Detail Materi" : "Koleksi Materi Mimbar"}
-          </p>
-        </div>
       </div>
 
       <div className="flex flex-col px-4 py-8 pb-6">

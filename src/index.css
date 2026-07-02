@@ -84,3 +84,31 @@ body {
   filter: invert(1) hue-rotate(180deg);
 }
 
+
+@media print {
+  /* Prevent background color rendering on print */
+  body {
+    background-color: white !important;
+  }
+  #root {
+    background-color: white !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+  
+  /* Hide UI elements */
+  .sticky {
+    display: none !important;
+  }
+  button {
+    display: none !important;
+  }
+  
+  /* Make text black and clear */
+  
+  /* Optional: page breaks */
+  h2 {
+    page-break-before: avoid;
+  }
+}
