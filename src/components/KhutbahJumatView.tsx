@@ -95,7 +95,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
       
       let tanyaUstadzContextStr = "";
       if (aiContextMessages && aiContextMessages.length > 0) {
-        tanyaUstadzContextStr = aiContextMessages.map(m => `${m.sender === 'user' ? 'Penanya' : 'Tanya Ustadz AI'}: ${m.text}`).join('\n\n');
+        tanyaUstadzContextStr = aiContextMessages.map(m => `${m.sender === 'user' ? 'Penanya' : 'Tanya Abah'}: ${m.text}`).join('\n\n');
       }
 
       const payload: any = { tema: aiTema, judul: aiJudul, apiKey, tanyaUstadzContext: tanyaUstadzContextStr };
@@ -348,7 +348,7 @@ export const KhutbahJumatView: React.FC<Props> = ({ onBack }) => {
                   {tanyaUstadzHistory.length > 0 && !isGenerating && (
                     <div className="mt-3">
                       <p className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5 mb-2">
-                        <History className="w-3.5 h-3.5" /> DARI RIWAYAT TANYA USTADZ AI
+                        <History className="w-3.5 h-3.5" /> DARI RIWAYAT TANYA ABAH
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {tanyaUstadzHistory.map(session => {

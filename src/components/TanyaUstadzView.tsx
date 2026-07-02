@@ -75,7 +75,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
 }) => {
   const initialMessage: ChatMessage = {
     sender: "ai",
-    text: "Assalamu'alaikum! Saya adalah Asisten AI 'Tanya Ustadz AI' di Quran Saku Anda. Silakan tanyakan apa saja tentang kandungan ayat, nasehat spiritual, tafsir makna, maupun petunjuk doa yang ingin Anda ketahui.",
+    text: "Assalamu'alaikum! Saya adalah 'Tanya Abah' di Quran Saku Anda. Silakan tanyakan apa saja tentang kandungan ayat, nasehat spiritual, tafsir makna, maupun petunjuk doa yang ingin Anda ketahui.",
     timestamp: new Date(),
   };
 
@@ -270,7 +270,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
 
       if (geminiApiKey && geminiApiKey.trim() !== "") {
         const sysInstruct =
-          "Anda adalah asisten AI 'Tanya Ustadz AI' di aplikasi 'Quran Saku'. Anda adalah Ulama Mufassir yang sangat berpengetahuan tentang Al-Qur'an, asbabun nuzul, dan ilmu Hadits. Tugas Anda: memberikan jawaban Islami komprehensif yang WAJIB merujuk pada ayat suci Al-Qur'an dan riwayat Hadits (Kutubus Sittah). Saat mengutip ayat atau hadits, tuliskan langsung teks Arabnya tanpa menambahkan embel-embel label seperti 'Arab:' atau 'Teks Arab:'. Langsung saja tulis ayatnya, berikan terjemahan, dan referensinya secara natural (contoh: QS. Al-Baqarah: 120 atau HR. Bukhari). Formatlah menggunakan Markdown yang rapi.";
+          "Anda adalah asisten AI 'Tanya Abah' di aplikasi 'Quran Saku'. Anda adalah Ulama Mufassir yang sangat berpengetahuan tentang Al-Qur'an, asbabun nuzul, dan ilmu Hadits. Tugas Anda: memberikan jawaban Islami komprehensif yang WAJIB merujuk pada ayat suci Al-Qur'an dan riwayat Hadits (Kutubus Sittah). Saat mengutip ayat atau hadits, tuliskan langsung teks Arabnya tanpa menambahkan embel-embel label seperti 'Arab:' atau 'Teks Arab:'. Langsung saja tulis ayatnya, berikan terjemahan, dan referensinya secara natural (contoh: QS. Al-Baqarah: 120 atau HR. Bukhari). Formatlah menggunakan Markdown yang rapi.";
 
         const qp = `Pertanyaan Pengguna:\n${textToSend}\n\nTolong jawab pertanyaan ini dengan hikmah, berikan referensi spesifik dari Al-Qur'an maupun sabda Rasulullah (Hadits) yang relevan secara tegas beserta porsi teks asli dan maknanya agar menguatkan keimanan.`;
 
@@ -332,7 +332,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
       
       const isOverloaded = err.message?.includes("high demand") || err.message?.includes("503");
       const errorMsg = isOverloaded
-        ? "**Ustadz AI Sedang Sibuk:**\nMaaf, sistem AI Ustadz saat ini sedang mengalami lonjakan antrean. Mohon tunggu beberapa menit lalu coba tanyakan kembali ya. Insya Allah segera membaik. (Status: 503 Server Sibuk)"
+        ? "**Abah Sedang Sibuk:**\nMaaf, sistem Abah saat ini sedang mengalami lonjakan antrean. Mohon tunggu beberapa menit lalu coba tanyakan kembali ya. Insya Allah segera membaik. (Status: 503 Server Sibuk)"
         : `**Maaf, saya mengalami kendala interaksi:** ${err.message}`;
 
       setMessages((prev) => [
@@ -428,7 +428,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
         <html lang="id">
         <head>
           <meta charset="UTF-8">
-          <title>Tanya Ustadz AI - Quran Saku</title>
+          <title>Tanya Abah - Quran Saku</title>
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Amiri:wght@400;700&family=Inter:wght@400;500;600;700&display=swap');
             
@@ -584,7 +584,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                 </svg>
               </div>
               <h1>Quran Saku</h1>
-              <p>Jawaban AI "Tanya Ustadz" &mdash; Diterbitkan otomatis pada: ${new Date(timestamp).toLocaleString('id-ID')}</p>
+              <p>Jawaban "Tanya Abah" &mdash; Diterbitkan otomatis pada: ${new Date(timestamp).toLocaleString('id-ID')}</p>
             </div>
             
             <div class="content">
@@ -718,7 +718,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
       <div class="img-footer">
         <div>
            <div class="img-footer-brand">Quran Saku</div>
-           <div class="img-footer-sub">Tanya Ustadz AI &mdash; ${new Date(timestamp).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+           <div class="img-footer-sub">Tanya Abah &mdash; ${new Date(timestamp).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
         </div>
         <div>
           <svg xmlns="http://www.w3.org/2000/svg" width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="#0F4C3A" stroke-width="1.5" opacity="0.8" stroke-linecap="round" stroke-linejoin="round">
@@ -749,7 +749,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
       
       const link = document.createElement('a');
       link.href = imgData;
-      link.download = "TanyaUstadzAI-Kutipan.png";
+      link.download = "TanyaAbah-Kutipan.png";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -804,7 +804,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
             </div>
             <div className="flex flex-col min-w-0">
               <h3 className="font-serif font-bold text-white text-lg leading-tight truncate">
-                Tanya Ustadz AI
+                Tanya Abah
               </h3>
               <p className="text-[10px] text-teal-100/90 font-medium leading-normal line-clamp-1">
                 Tanya dalil, ayat, & hadits (Gemini 2.5 Flash)
@@ -980,7 +980,7 @@ export const TanyaUstadzView: React.FC<TanyaUstadzViewProps> = ({
                                 if (navigator.share) {
                                   try {
                                     await navigator.share({
-                                      title: "Tanya Ustadz AI - Quran Saku",
+                                      title: "Tanya Abah - Quran Saku",
                                       text: msg.text,
                                     });
                                   } catch (e) {

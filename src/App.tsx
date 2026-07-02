@@ -1314,7 +1314,7 @@ export default function App() {
           },
           {
             id: "ustadz",
-            label: "Tanya AI",
+            label: "Tanya Abah",
             icon: <Bot className="w-6 h-6" strokeWidth={1.5} />,
             isCenter: true,
           },

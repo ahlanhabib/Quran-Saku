@@ -427,7 +427,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 className="w-full bg-[#FDFBF7] border border-slate-200/80 rounded-2xl px-5 py-3.5 text-sm sm:text-[15px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0F4C3A]/20 focus:border-[#0F4C3A] font-mono transition-all shadow-sm"
               />
               <span className="text-[11px] text-slate-500 font-medium block leading-relaxed mt-1">
-                Digunakan untuk fitur Tanya Ustadz AI. Disimpan di lokal secara
+                Digunakan untuk fitur Tanya Abah. Disimpan di lokal secara
                 aman. Dapatkan gratis di{" "}
                 <a
                   href="https://aistudio.google.com/app/apikey"
@@ -935,7 +935,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </span>
                     <p className="text-sm font-medium text-slate-600 leading-relaxed mt-1">
                       <span className="font-bold text-[#0F4C3A]">
-                        Tanya Ustadz AI:
+                        Tanya Abah:
                       </span>{" "}
                       Bimbingan Islami interaktif berbasis AI dengan rujukan
                       komprehensif ke ayat Al-Qur'an dan Hadits real-time.
